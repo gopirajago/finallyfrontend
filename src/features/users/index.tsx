@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
 import { ConfigDrawer } from '@/components/config-drawer'
 import { Header } from '@/components/layout/header'
@@ -5,17 +6,35 @@ import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { Search } from '@/components/search'
 import { ThemeSwitch } from '@/components/theme-switch'
+import { usersApi } from '@/lib/users-api'
 import { UsersDialogs } from './components/users-dialogs'
 import { UsersPrimaryButtons } from './components/users-primary-buttons'
 import { UsersProvider } from './components/users-provider'
 import { UsersTable } from './components/users-table'
-import { users } from './data/users'
 
 const route = getRouteApi('/_authenticated/users/')
 
 export function Users() {
   const search = route.useSearch()
   const navigate = route.useNavigate()
+
+  const { data: users = [], isLoading } = useQuery({
+    queryKey: ['users'],
+    queryFn: () => usersApi.list(),
+  })
+
+  const tableData = users.map((u) => ({
+    id: String(u.id),
+    firstName: u.full_name?.split(' ')[0] ?? '',
+    lastName: u.full_name?.split(' ').slice(1).join(' ') ?? '',
+    username: u.username,
+    email: u.email,
+    phoneNumber: '',
+    status: u.is_active ? ('active' as const) : ('inactive' as const),
+    role: u.is_superuser ? ('superadmin' as const) : ('admin' as const),
+    createdAt: new Date(u.created_at),
+    updatedAt: new Date(u.updated_at),
+  }))
 
   return (
     <UsersProvider>
@@ -38,7 +57,11 @@ export function Users() {
           </div>
           <UsersPrimaryButtons />
         </div>
-        <UsersTable data={users} search={search} navigate={navigate} />
+        {isLoading ? (
+          <div className='py-8 text-center text-muted-foreground'>Loading users...</div>
+        ) : (
+          <UsersTable data={tableData} search={search} navigate={navigate} />
+        )}
       </Main>
 
       <UsersDialogs />

@@ -12,7 +12,8 @@
     "format": "prettier --write .",
     "knip": "knip",
     "heroku-postbuild": "npm run build",
-    "start": "node server.js"
+    "start": "node server.js",
+    "postinstall": "echo 'install complete'"
   },
   "engines": {
     "node": "20.x",
