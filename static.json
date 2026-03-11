@@ -1,0 +1,16 @@
+{
+  "root": "dist",
+  "routes": {
+    "/**": "index.html"
+  },
+  "headers": {
+    "/assets/**": {
+      "Cache-Control": "public, max-age=31536000, immutable"
+    },
+    "/**": {
+      "X-Frame-Options": "DENY",
+      "X-Content-Type-Options": "nosniff"
+    }
+  },
+  "https_only": true
+}
