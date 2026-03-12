@@ -67,6 +67,38 @@ export interface LiveSummary {
   positions: PositionRow[]
 }
 
+export interface DailyPnlRow {
+  date: string
+  total_capital: number
+  holdings_value: number
+  total_invested: number
+  equity_pnl: number
+  equity_pnl_pct: number
+  intraday_pnl: number
+  fno_pnl: number
+  total_day_pnl: number
+  intraday_trades: number
+  fno_trades: number
+  positions: PositionRow[]
+}
+
+export interface HoldingPnlRow {
+  symbol: string
+  quantity: number
+  avg_price: number
+  ltp: number
+  invested: number
+  current_value: number
+  pnl: number
+  pnl_pct: number
+  history: { date: string; pnl: number; pnl_pct: number; ltp: number; current_value: number }[]
+}
+
+export interface PnlReport {
+  daily: DailyPnlRow[]
+  holdings: HoldingPnlRow[]
+}
+
 export const snapshotsApi = {
   getLatest: async (): Promise<SnapshotDetail | null> => {
     const res = await apiClient.get('/snapshots/latest')
@@ -90,6 +122,11 @@ export const snapshotsApi = {
 
   captureNow: async (): Promise<SnapshotDetail> => {
     const res = await apiClient.post('/snapshots/capture-now')
+    return res.data
+  },
+
+  getPnlReport: async (days = 90): Promise<PnlReport> => {
+    const res = await apiClient.get('/snapshots/pnl-report', { params: { days } })
     return res.data
   },
 }
