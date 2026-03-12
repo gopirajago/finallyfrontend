@@ -290,7 +290,7 @@ export function Dashboard() {
                   <BarChart data={chartData} margin={{ top: 2, right: 4, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray='3 3' className='stroke-border' vertical={false} />
                     <XAxis dataKey='date' tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
-                    <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} width={42} />
+                    <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={(v) => Math.abs(v) >= 1000 ? `₹${(v/1000).toFixed(1)}k` : `₹${v}`} width={52} />
                     <Tooltip formatter={(val) => [fmtCurrency(Number(val)), 'Equity P&L']} contentStyle={{ fontSize: 11, borderRadius: 8 }} />
                     <Bar dataKey='equity' radius={[3, 3, 0, 0]} maxBarSize={32}>
                       {chartData.map((e, i) => <Cell key={i} fill={e.equity >= 0 ? '#6366f1' : '#f43f5e'} fillOpacity={0.85} />)}
@@ -318,7 +318,7 @@ export function Dashboard() {
                   <BarChart data={chartData} margin={{ top: 2, right: 4, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray='3 3' className='stroke-border' vertical={false} />
                     <XAxis dataKey='date' tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
-                    <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} width={42} />
+                    <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={(v) => Math.abs(v) >= 1000 ? `₹${(v/1000).toFixed(1)}k` : `₹${v}`} width={52} />
                     <Tooltip formatter={(val, name) => [fmtCurrency(Number(val)), name === 'intraday' ? 'Intraday' : 'F&O']} contentStyle={{ fontSize: 11, borderRadius: 8 }} />
                     <Bar dataKey='intraday' radius={[3, 3, 0, 0]} maxBarSize={20}>
                       {chartData.map((e, i) => <Cell key={i} fill={e.intraday >= 0 ? '#10b981' : '#f43f5e'} fillOpacity={0.85} />)}
