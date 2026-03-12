@@ -539,7 +539,7 @@ export function TradingAnalysis() {
     staleTime: 4000,
   })
 
-  const { data: candlesData, isLoading: candlesLoading } = useQuery({
+  const { data: candlesData } = useQuery({
     queryKey: ['analysis-candles', symbol, interval],
     queryFn: () => analysisApi.getCandles(symbol, interval),
     refetchInterval: autoRefresh ? 30000 : false,
