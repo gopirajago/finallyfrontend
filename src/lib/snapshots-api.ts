@@ -41,9 +41,26 @@ export interface DailyHoldingPoint {
   current_value: number
 }
 
+export interface LiveSummary {
+  total_capital: number
+  available_cash: number
+  used_margin: number
+  holdings_value: number
+  total_invested: number
+  total_pnl: number
+  total_pnl_pct: number
+  holdings_count: number
+  holdings: HoldingRow[]
+}
+
 export const snapshotsApi = {
   getLatest: async (): Promise<SnapshotDetail | null> => {
     const res = await apiClient.get('/snapshots/latest')
+    return res.data
+  },
+
+  getLiveSummary: async (): Promise<LiveSummary> => {
+    const res = await apiClient.get('/portfolio/live-summary')
     return res.data
   },
 

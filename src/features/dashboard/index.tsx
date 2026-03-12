@@ -19,7 +19,7 @@ import {
   AlertCircle,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { snapshotsApi, type SnapshotSummary, type HoldingRow } from '@/lib/snapshots-api'
+import { snapshotsApi, type SnapshotSummary, type HoldingRow, type LiveSummary } from '@/lib/snapshots-api'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -127,6 +127,14 @@ export function Dashboard() {
     retry: false,
   })
 
+  const liveQ = useQuery<LiveSummary>({
+    queryKey: ['portfolio-live'],
+    queryFn: snapshotsApi.getLiveSummary,
+    retry: false,
+    staleTime: 60_000,
+    refetchInterval: 60_000,
+  })
+
   const captureMutation = useMutation({
     mutationFn: snapshotsApi.captureNow,
     onSuccess: () => {
@@ -142,18 +150,31 @@ export function Dashboard() {
   })
 
   const snap = latestQ.data
+  const live: LiveSummary | undefined = liveQ.data
   const history: SnapshotSummary[] = historyQ.data ?? []
-  const holdings: HoldingRow[] = snap?.holdings_json ?? []
-  const noData = !latestQ.isLoading && !snap
+  // Prefer live holdings if available, fall back to last snapshot
+  const holdings: HoldingRow[] = live?.holdings ?? snap?.holdings_json ?? []
+  const noData = !latestQ.isLoading && !liveQ.isLoading && !snap && !live
 
-  // Today's P&L = change in total_pnl from yesterday's snapshot to today's
-  const todayPnl = history.length >= 2
-    ? history[0].total_pnl - history[1].total_pnl
+  // Total P&L: live if available, else from latest snapshot
+  const totalPnl = live?.total_pnl ?? snap?.total_pnl ?? null
+  const totalPnlPct = live?.total_pnl_pct ?? snap?.total_pnl_pct ?? null
+
+  // Today's P&L: live total_pnl vs yesterday's snapshot
+  const yesterdaySnap = history.length >= 2 ? history[history.length - 2] : history.length === 1 ? null : null
+  const todayPnl = live !== undefined
+    ? yesterdaySnap !== null
+      ? live.total_pnl - yesterdaySnap.total_pnl
+      : live.total_pnl
+    : history.length >= 2
+    ? history[history.length - 1].total_pnl - history[history.length - 2].total_pnl
     : history.length === 1
     ? history[0].total_pnl
     : null
-  const todayPnlSub = history.length >= 2
-    ? `vs ${fmtDate(history[1].snapshot_date)}`
+  const todayPnlSub = yesterdaySnap
+    ? `vs ${fmtDate(yesterdaySnap.snapshot_date)}`
+    : live !== undefined
+    ? 'Live · no prior snapshot'
     : history.length === 1
     ? 'First snapshot'
     : 'Need snapshots'
@@ -212,38 +233,40 @@ export function Dashboard() {
         <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-5 mb-4'>
           <StatCard
             title='Total Capital'
-            value={snap ? fmtCurrency(snap.total_capital) : '—'}
-            sub={snap ? `Cash: ${fmtCurrency(snap.available_cash)}` : undefined}
+            value={live ? fmtCurrency(live.total_capital) : snap ? fmtCurrency(snap.total_capital) : '—'}
+            sub={live ? `Cash: ${fmtCurrency(live.available_cash)}` : snap ? `Cash: ${fmtCurrency(snap.available_cash)}` : undefined}
             icon={Wallet}
             accent='bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-400'
             valueClass='text-indigo-700 dark:text-indigo-300'
-            loading={latestQ.isLoading}
+            loading={latestQ.isLoading && liveQ.isLoading}
           />
           <StatCard
             title='Holdings Value'
-            value={snap ? fmtCurrency(snap.holdings_value) : '—'}
-            sub={snap ? `Invested: ${fmtCurrency(snap.total_invested)}` : undefined}
+            value={live ? fmtCurrency(live.holdings_value) : snap ? fmtCurrency(snap.holdings_value) : '—'}
+            sub={live ? `Invested: ${fmtCurrency(live.total_invested)}` : snap ? `Invested: ${fmtCurrency(snap.total_invested)}` : undefined}
             icon={BarChart2}
             accent='bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-400'
             valueClass='text-indigo-700 dark:text-indigo-300'
-            loading={latestQ.isLoading}
+            loading={latestQ.isLoading && liveQ.isLoading}
           />
           <StatCard
             title='Total P&L'
-            value={snap ? fmtCurrency(snap.total_pnl) : '—'}
-            sub={snap ? fmtPct(snap.total_pnl_pct) : undefined}
-            icon={snap && snap.total_pnl >= 0 ? TrendingUp : TrendingDown}
+            value={totalPnl !== null ? fmtCurrency(totalPnl) : '—'}
+            sub={totalPnlPct !== null ? fmtPct(totalPnlPct) : undefined}
+            icon={totalPnl !== null && totalPnl >= 0 ? TrendingUp : TrendingDown}
             accent={
-              snap && snap.total_pnl >= 0
+              totalPnl !== null && totalPnl >= 0
                 ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400'
                 : 'bg-rose-50 text-rose-600 dark:bg-rose-950 dark:text-rose-400'
             }
             valueClass={
-              snap && snap.total_pnl >= 0
+              totalPnl !== null && totalPnl >= 0
                 ? 'text-emerald-700 dark:text-emerald-300'
-                : 'text-rose-700 dark:text-rose-300'
+                : totalPnl !== null
+                ? 'text-rose-700 dark:text-rose-300'
+                : undefined
             }
-            loading={latestQ.isLoading}
+            loading={latestQ.isLoading || liveQ.isLoading}
           />
           <StatCard
             title="Today's P&L"
@@ -266,11 +289,11 @@ export function Dashboard() {
           />
           <StatCard
             title='Stocks Held'
-            value={snap ? String(snap.holdings_count) : '—'}
-            sub={snap ? `As of ${fmtDate(snap.snapshot_date)}` : undefined}
+            value={live ? String(live.holdings_count) : snap ? String(snap.holdings_count) : '—'}
+            sub={live ? 'Live' : snap ? `As of ${fmtDate(snap.snapshot_date)}` : undefined}
             icon={Layers}
             accent='bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-400'
-            loading={latestQ.isLoading}
+            loading={latestQ.isLoading && liveQ.isLoading}
           />
         </div>
 
