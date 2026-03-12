@@ -140,6 +140,7 @@ export function Dashboard() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['snapshot-latest'] })
       queryClient.invalidateQueries({ queryKey: ['snapshot-history'] })
+      queryClient.invalidateQueries({ queryKey: ['portfolio-live'] })
       toast.success('Snapshot captured', { description: 'Portfolio data updated successfully.' })
     },
     onError: (err: unknown) => {
@@ -156,28 +157,29 @@ export function Dashboard() {
   const holdings: HoldingRow[] = live?.holdings ?? snap?.holdings_json ?? []
   const noData = !latestQ.isLoading && !liveQ.isLoading && !snap && !live
 
-  // Total P&L: live if available, else from latest snapshot
-  const totalPnl = live?.total_pnl ?? snap?.total_pnl ?? null
-  const totalPnlPct = live?.total_pnl_pct ?? snap?.total_pnl_pct ?? null
+  // history is sorted ascending: history[last] = most recent, history[last-1] = previous
+  const todaySnap = history.length > 0 ? history[history.length - 1] : null
+  const prevSnap  = history.length > 1 ? history[history.length - 2] : null
 
-  // Today's P&L: live total_pnl vs yesterday's snapshot
-  const yesterdaySnap = history.length >= 2 ? history[history.length - 2] : history.length === 1 ? null : null
-  const todayPnl = live !== undefined
-    ? yesterdaySnap !== null
-      ? live.total_pnl - yesterdaySnap.total_pnl
-      : live.total_pnl
-    : history.length >= 2
-    ? history[history.length - 1].total_pnl - history[history.length - 2].total_pnl
-    : history.length === 1
-    ? history[0].total_pnl
+  // Total P&L: live if available, else from latest snapshot
+  const totalPnl    = live?.total_pnl    ?? snap?.total_pnl    ?? todaySnap?.total_pnl    ?? null
+  const totalPnlPct = live?.total_pnl_pct ?? snap?.total_pnl_pct ?? todaySnap?.total_pnl_pct ?? null
+
+  // Today's P&L = today's total_pnl minus previous day's total_pnl
+  const todayPnl = live !== undefined && prevSnap !== null
+    ? live.total_pnl - prevSnap.total_pnl
+    : live !== undefined && prevSnap === null
+    ? live.total_pnl
+    : todaySnap !== null && prevSnap !== null
+    ? todaySnap.total_pnl - prevSnap.total_pnl
+    : todaySnap !== null
+    ? todaySnap.total_pnl
     : null
-  const todayPnlSub = yesterdaySnap
-    ? `vs ${fmtDate(yesterdaySnap.snapshot_date)}`
-    : live !== undefined
-    ? 'Live · no prior snapshot'
-    : history.length === 1
+  const todayPnlSub = prevSnap
+    ? `vs ${fmtDate(prevSnap.snapshot_date)}`
+    : todaySnap
     ? 'First snapshot'
-    : 'Need snapshots'
+    : '—'
 
   // Chart data
   const chartData = history.map((h) => ({
