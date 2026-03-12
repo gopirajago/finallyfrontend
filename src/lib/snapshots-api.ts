@@ -10,6 +10,8 @@ export interface SnapshotSummary {
   total_pnl: number
   total_pnl_pct: number
   holdings_count: number
+  intraday_pnl: number
+  fno_pnl: number
 }
 
 export interface SnapshotDetail extends SnapshotSummary {
@@ -41,6 +43,15 @@ export interface DailyHoldingPoint {
   current_value: number
 }
 
+export interface PositionRow {
+  symbol: string
+  segment: string
+  quantity: number
+  realised_pnl: number
+  unrealised_pnl: number
+  pnl: number
+}
+
 export interface LiveSummary {
   total_capital: number
   available_cash: number
@@ -51,6 +62,9 @@ export interface LiveSummary {
   total_pnl_pct: number
   holdings_count: number
   holdings: HoldingRow[]
+  intraday_pnl: number
+  fno_pnl: number
+  positions: PositionRow[]
 }
 
 export const snapshotsApi = {

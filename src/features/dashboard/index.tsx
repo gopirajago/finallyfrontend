@@ -8,6 +8,7 @@ import {
   Tooltip,
   ResponsiveContainer,
   Cell,
+  Legend,
 } from 'recharts'
 import {
   Wallet,
@@ -19,7 +20,7 @@ import {
   AlertCircle,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { snapshotsApi, type SnapshotSummary, type HoldingRow, type LiveSummary } from '@/lib/snapshots-api'
+import { snapshotsApi, type SnapshotSummary, type HoldingRow, type LiveSummary, type PositionRow } from '@/lib/snapshots-api'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -181,10 +182,17 @@ export function Dashboard() {
     ? 'First snapshot'
     : '—'
 
-  // Chart data
+  // Intraday & FNO P&L (live preferred, else today's snapshot)
+  const intradayPnl = live?.intraday_pnl ?? todaySnap?.intraday_pnl ?? null
+  const fnoPnl      = live?.fno_pnl      ?? todaySnap?.fno_pnl      ?? null
+  const positions: PositionRow[] = live?.positions ?? []
+
+  // Chart data — multi-series
   const chartData = history.map((h) => ({
     date: fmtDate(h.snapshot_date),
-    pnl: h.total_pnl,
+    equity: h.total_pnl,
+    intraday: h.intraday_pnl ?? 0,
+    fno: h.fno_pnl ?? 0,
   }))
 
   return (
@@ -232,7 +240,7 @@ export function Dashboard() {
         )}
 
         {/* ── Stat cards ────────────────────────────────────────────────── */}
-        <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-5 mb-4'>
+        <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-7 mb-4'>
           <StatCard
             title='Total Capital'
             value={live ? fmtCurrency(live.total_capital) : snap ? fmtCurrency(snap.total_capital) : '—'}
@@ -297,17 +305,51 @@ export function Dashboard() {
             accent='bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-400'
             loading={latestQ.isLoading && liveQ.isLoading}
           />
+          <StatCard
+            title='Intraday P&L'
+            value={intradayPnl !== null ? fmtCurrency(intradayPnl) : '—'}
+            sub='Today · equity intraday'
+            icon={intradayPnl !== null && intradayPnl >= 0 ? TrendingUp : TrendingDown}
+            accent={
+              intradayPnl !== null && intradayPnl >= 0
+                ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400'
+                : 'bg-rose-50 text-rose-600 dark:bg-rose-950 dark:text-rose-400'
+            }
+            valueClass={
+              intradayPnl !== null && intradayPnl >= 0
+                ? 'text-emerald-700 dark:text-emerald-300'
+                : intradayPnl !== null ? 'text-rose-700 dark:text-rose-300' : undefined
+            }
+            loading={liveQ.isLoading}
+          />
+          <StatCard
+            title='F&O P&L'
+            value={fnoPnl !== null ? fmtCurrency(fnoPnl) : '—'}
+            sub='Today · futures & options'
+            icon={fnoPnl !== null && fnoPnl >= 0 ? TrendingUp : TrendingDown}
+            accent={
+              fnoPnl !== null && fnoPnl >= 0
+                ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400'
+                : 'bg-rose-50 text-rose-600 dark:bg-rose-950 dark:text-rose-400'
+            }
+            valueClass={
+              fnoPnl !== null && fnoPnl >= 0
+                ? 'text-emerald-700 dark:text-emerald-300'
+                : fnoPnl !== null ? 'text-rose-700 dark:text-rose-300' : undefined
+            }
+            loading={liveQ.isLoading}
+          />
         </div>
 
         {/* ── P&L bar chart + stock table ───────────────────────────────── */}
         <div className='grid grid-cols-1 gap-4 lg:grid-cols-7'>
 
-          {/* Daily P&L bar chart */}
+          {/* Daily P&L bar chart — multi-series */}
           <Card className='col-span-1 lg:col-span-4 border-0 shadow-sm'>
             <CardHeader className='pb-1'>
               <CardTitle className='text-sm font-semibold'>Daily P&L (last 30 days)</CardTitle>
               <CardDescription className='text-xs'>
-                Each bar represents the total portfolio P&L on that snapshot date.
+                Equity holdings · Intraday · F&O P&L per snapshot date
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -318,32 +360,25 @@ export function Dashboard() {
                   No history yet — capture a few snapshots first.
                 </div>
               ) : (
-                <ResponsiveContainer width='100%' height={220}>
+                <ResponsiveContainer width='100%' height={240}>
                   <BarChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray='3 3' className='stroke-border' />
-                    <XAxis
-                      dataKey='date'
-                      tick={{ fontSize: 11 }}
-                      tickLine={false}
-                      axisLine={false}
-                    />
-                    <YAxis
-                      tick={{ fontSize: 11 }}
-                      tickLine={false}
-                      axisLine={false}
-                      tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`}
-                    />
+                    <XAxis dataKey='date' tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+                    <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
                     <Tooltip
-                      formatter={(val) => [fmtCurrency(Number(val)), 'P&L']}
+                      formatter={(val, name) => [fmtCurrency(Number(val)), name === 'equity' ? 'Equity' : name === 'intraday' ? 'Intraday' : 'F&O']}
                       contentStyle={{ fontSize: 12, borderRadius: 8 }}
                     />
-                    <Bar dataKey='pnl' radius={[4, 4, 0, 0]}>
+                    <Legend formatter={(v) => v === 'equity' ? 'Equity' : v === 'intraday' ? 'Intraday' : 'F&O'} wrapperStyle={{ fontSize: 11 }} />
+                    <Bar dataKey='equity' radius={[3, 3, 0, 0]} fill='#6366f1' fillOpacity={0.85} />
+                    <Bar dataKey='intraday' radius={[3, 3, 0, 0]}>
                       {chartData.map((entry, i) => (
-                        <Cell
-                          key={i}
-                          fill={entry.pnl >= 0 ? '#10b981' : '#f43f5e'}
-                          fillOpacity={0.85}
-                        />
+                        <Cell key={i} fill={entry.intraday >= 0 ? '#10b981' : '#f43f5e'} fillOpacity={0.85} />
+                      ))}
+                    </Bar>
+                    <Bar dataKey='fno' radius={[3, 3, 0, 0]}>
+                      {chartData.map((entry, i) => (
+                        <Cell key={i} fill={entry.fno >= 0 ? '#f59e0b' : '#ef4444'} fillOpacity={0.85} />
                       ))}
                     </Bar>
                   </BarChart>
@@ -352,53 +387,91 @@ export function Dashboard() {
             </CardContent>
           </Card>
 
-          {/* Stock performance table */}
-          <Card className='col-span-1 lg:col-span-3 border-0 shadow-sm'>
-            <CardHeader className='pb-1'>
-              <CardTitle className='text-sm font-semibold'>Stock Performance</CardTitle>
-              <CardDescription className='text-xs'>Today's holdings from latest snapshot</CardDescription>
-            </CardHeader>
-            <CardContent className='p-0'>
-              {latestQ.isLoading ? (
-                <div className='p-4 space-y-2'>
-                  {[...Array(5)].map((_, i) => <Skeleton key={i} className='h-7 w-full' />)}
-                </div>
-              ) : holdings.length === 0 ? (
-                <div className='flex h-40 items-center justify-center text-sm text-muted-foreground'>
-                  No holdings data available.
-                </div>
-              ) : (
-                <div className='max-h-64 overflow-y-auto'>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className='pl-4'>Symbol</TableHead>
-                        <TableHead className='text-right'>Qty</TableHead>
-                        <TableHead className='text-right'>LTP</TableHead>
-                        <TableHead className='text-right pr-4'>P&L</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {[...holdings]
-                        .sort((a, b) => Math.abs(b.pnl) - Math.abs(a.pnl))
-                        .map((h) => (
+          {/* Right col: Holdings + Positions tables */}
+          <div className='col-span-1 lg:col-span-3 flex flex-col gap-4'>
+
+            {/* Stock performance */}
+            <Card className='border-0 shadow-sm flex-1'>
+              <CardHeader className='pb-1'>
+                <CardTitle className='text-sm font-semibold'>Stock Performance</CardTitle>
+                <CardDescription className='text-xs'>Holdings · live P&L</CardDescription>
+              </CardHeader>
+              <CardContent className='p-0'>
+                {liveQ.isLoading ? (
+                  <div className='p-4 space-y-2'>{[...Array(4)].map((_, i) => <Skeleton key={i} className='h-7 w-full' />)}</div>
+                ) : holdings.length === 0 ? (
+                  <div className='flex h-28 items-center justify-center text-sm text-muted-foreground'>No holdings data.</div>
+                ) : (
+                  <div className='max-h-48 overflow-y-auto'>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className='pl-4'>Symbol</TableHead>
+                          <TableHead className='text-right'>Qty</TableHead>
+                          <TableHead className='text-right'>LTP</TableHead>
+                          <TableHead className='text-right pr-4'>P&L</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {[...holdings].sort((a, b) => Math.abs(b.pnl) - Math.abs(a.pnl)).map((h) => (
                           <TableRow key={h.symbol}>
                             <TableCell className='pl-4 font-medium text-xs'>{h.symbol}</TableCell>
                             <TableCell className='text-right text-xs'>{h.quantity}</TableCell>
-                            <TableCell className='text-right text-xs font-mono'>
-                              {h.ltp ? fmtCurrency(h.ltp) : '—'}
-                            </TableCell>
-                            <TableCell className='text-right pr-4'>
-                              <PnlBadge value={h.pnl} />
-                            </TableCell>
+                            <TableCell className='text-right text-xs font-mono'>{h.ltp ? fmtCurrency(h.ltp) : '—'}</TableCell>
+                            <TableCell className='text-right pr-4'><PnlBadge value={h.pnl} /></TableCell>
                           </TableRow>
                         ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Intraday + FNO positions */}
+            <Card className='border-0 shadow-sm flex-1'>
+              <CardHeader className='pb-1'>
+                <CardTitle className='text-sm font-semibold'>Intraday &amp; F&O Positions</CardTitle>
+                <CardDescription className='text-xs'>Today's closed + open positions P&L</CardDescription>
+              </CardHeader>
+              <CardContent className='p-0'>
+                {liveQ.isLoading ? (
+                  <div className='p-4 space-y-2'>{[...Array(4)].map((_, i) => <Skeleton key={i} className='h-7 w-full' />)}</div>
+                ) : positions.length === 0 ? (
+                  <div className='flex h-28 items-center justify-center text-sm text-muted-foreground'>No positions today.</div>
+                ) : (
+                  <div className='max-h-48 overflow-y-auto'>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className='pl-4'>Symbol</TableHead>
+                          <TableHead className='text-right'>Seg</TableHead>
+                          <TableHead className='text-right'>Qty</TableHead>
+                          <TableHead className='text-right pr-4'>P&L</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {[...positions].sort((a, b) => Math.abs(b.pnl) - Math.abs(a.pnl)).map((p, i) => (
+                          <TableRow key={i}>
+                            <TableCell className='pl-4 font-medium text-xs truncate max-w-[100px]'>{p.symbol}</TableCell>
+                            <TableCell className='text-right text-xs'>
+                              <span className={`rounded px-1 py-0.5 text-xs font-semibold ${
+                                p.segment === 'FNO'
+                                  ? 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300'
+                                  : 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300'
+                              }`}>{p.segment}</span>
+                            </TableCell>
+                            <TableCell className='text-right text-xs'>{p.quantity}</TableCell>
+                            <TableCell className='text-right pr-4'><PnlBadge value={p.pnl} /></TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </Main>
     </>
