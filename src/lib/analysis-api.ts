@@ -53,9 +53,15 @@ export interface SignalsResponse {
   symbol: string
   interval: number
   ltp: number
-  candles: [number, number, number, number, number, number][]
+  candle_count: number
   analysis: Analysis
   timestamp: number
+}
+
+export interface CandlesResponse {
+  candles: [number, number, number, number, number, number][]
+  interval: number
+  symbol: string
 }
 
 export interface AISignal {
@@ -70,9 +76,15 @@ export interface AISignal {
   key_factors: string[]
 }
 
-export interface AISignalResponse extends SignalsResponse {
+export interface AISignalResponse {
+  symbol: string
+  interval: number
+  ltp: number
+  candle_count: number
+  analysis: Analysis
   ai_signal: AISignal
   news: { title: string }[]
+  timestamp: number
 }
 
 export const INTERVALS = [
@@ -87,6 +99,13 @@ export const INTERVALS = [
 export const INSTRUMENTS = ['NIFTY', 'BANKNIFTY', 'SENSEX', 'NIFTY IT', 'RELIANCE', 'INFY', 'TCS', 'HDFCBANK', 'ICICIBANK', 'SBIN']
 
 export const analysisApi = {
+  getCandles: async (symbol: string, interval: number): Promise<CandlesResponse> => {
+    const res = await apiClient.get<CandlesResponse>('/analysis/candles', {
+      params: { symbol, interval },
+    })
+    return res.data
+  },
+
   getSignals: async (symbol: string, interval: number): Promise<SignalsResponse> => {
     const res = await apiClient.get<SignalsResponse>('/analysis/signals', {
       params: { symbol, interval },

@@ -539,6 +539,14 @@ export function TradingAnalysis() {
     staleTime: 4000,
   })
 
+  const { data: candlesData, isLoading: candlesLoading } = useQuery({
+    queryKey: ['analysis-candles', symbol, interval],
+    queryFn: () => analysisApi.getCandles(symbol, interval),
+    refetchInterval: autoRefresh ? 30000 : false,
+    retry: 1,
+    staleTime: 15000,
+  })
+
   // Live LTP — every 1s during market hours, paused otherwise
   const { data: quoteData } = useQuery({
     queryKey: ['analysis-quote', symbol],
@@ -573,7 +581,7 @@ export function TradingAnalysis() {
 
   const errMsg = (error as any)?.response?.data?.detail ?? 'Failed to fetch data.'
   const analysis: Analysis | undefined = data?.analysis
-  const candles = data?.candles ?? []
+  const candles = candlesData?.candles ?? []
   const signals = analysis?.signals ?? []
   const indicators = analysis?.indicators
   const longSignals = signals.filter(s => s.direction === 'LONG')
