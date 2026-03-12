@@ -157,12 +157,12 @@ export function Dashboard() {
   const fnoPnl      = live?.fno_pnl      ?? todaySnap?.fno_pnl      ?? null
   const positions: PositionRow[] = live?.positions ?? []
 
-  // Chart data — multi-series
+  // Chart data — multi-series (force Number() in case API returns strings)
   const chartData = history.map((h) => ({
     date: fmtDate(h.snapshot_date),
-    equity: h.total_pnl,
-    intraday: h.intraday_pnl ?? 0,
-    fno: h.fno_pnl ?? 0,
+    equity: Number(h.total_pnl) || 0,
+    intraday: Number(h.intraday_pnl) || 0,
+    fno: Number(h.fno_pnl) || 0,
   }))
 
   const isLoading = latestQ.isLoading || liveQ.isLoading
