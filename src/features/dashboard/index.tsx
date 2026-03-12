@@ -88,12 +88,14 @@ export function Dashboard() {
     queryKey: ['snapshot-latest'],
     queryFn: snapshotsApi.getLatest,
     retry: false,
+    staleTime: 0,
   })
 
   const historyQ = useQuery({
     queryKey: ['snapshot-history'],
     queryFn: () => snapshotsApi.getHistory(30),
     retry: false,
+    staleTime: 0,
   })
 
   const liveQ = useQuery<LiveSummary>({
@@ -287,13 +289,25 @@ export function Dashboard() {
                 <div className='flex h-40 items-center justify-center text-xs text-muted-foreground'>No data — click Capture Now first.</div>
               ) : (
                 <ResponsiveContainer width='100%' height={150}>
-                  <BarChart data={chartData} margin={{ top: 2, right: 4, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray='3 3' className='stroke-border' vertical={false} />
+                  <BarChart data={chartData} margin={{ top: 16, right: 8, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray='3 3' stroke='#e5e7eb' vertical={false} />
                     <XAxis dataKey='date' tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
-                    <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={(v) => Math.abs(v) >= 1000 ? `₹${(v/1000).toFixed(1)}k` : `₹${v}`} width={52} />
-                    <Tooltip formatter={(val) => [fmtCurrency(Number(val)), 'Equity P&L']} contentStyle={{ fontSize: 11, borderRadius: 8 }} />
-                    <Bar dataKey='equity' radius={[3, 3, 0, 0]} maxBarSize={32}>
-                      {chartData.map((e, i) => <Cell key={i} fill={e.equity >= 0 ? '#6366f1' : '#f43f5e'} fillOpacity={0.85} />)}
+                    <YAxis
+                      tick={{ fontSize: 10 }} tickLine={false} axisLine={false} width={56}
+                      tickFormatter={(v) => {
+                        const n = Number(v)
+                        if (Math.abs(n) >= 100000) return `₹${(n/100000).toFixed(1)}L`
+                        if (Math.abs(n) >= 1000) return `₹${(n/1000).toFixed(0)}k`
+                        return `₹${n}`
+                      }}
+                    />
+                    <Tooltip
+                      formatter={(val) => [fmtCurrency(Number(val)), 'Equity P&L']}
+                      contentStyle={{ fontSize: 11, borderRadius: 8 }}
+                    />
+                    <Bar dataKey='equity' radius={[4, 4, 0, 0]} maxBarSize={48} minPointSize={3}
+                      label={{ position: 'top', fontSize: 9, formatter: (v: unknown) => Number(v) !== 0 ? fmtCurrency(Number(v)) : '' }}>
+                      {chartData.map((e, i) => <Cell key={i} fill={e.equity >= 0 ? '#6366f1' : '#f43f5e'} fillOpacity={0.9} />)}
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
@@ -315,16 +329,29 @@ export function Dashboard() {
                 <div className='flex h-40 items-center justify-center text-xs text-muted-foreground'>No data — click Capture Now first.</div>
               ) : (
                 <ResponsiveContainer width='100%' height={150}>
-                  <BarChart data={chartData} margin={{ top: 2, right: 4, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray='3 3' className='stroke-border' vertical={false} />
+                  <BarChart data={chartData} margin={{ top: 16, right: 8, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray='3 3' stroke='#e5e7eb' vertical={false} />
                     <XAxis dataKey='date' tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
-                    <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={(v) => Math.abs(v) >= 1000 ? `₹${(v/1000).toFixed(1)}k` : `₹${v}`} width={52} />
-                    <Tooltip formatter={(val, name) => [fmtCurrency(Number(val)), name === 'intraday' ? 'Intraday' : 'F&O']} contentStyle={{ fontSize: 11, borderRadius: 8 }} />
-                    <Bar dataKey='intraday' radius={[3, 3, 0, 0]} maxBarSize={20}>
-                      {chartData.map((e, i) => <Cell key={i} fill={e.intraday >= 0 ? '#10b981' : '#f43f5e'} fillOpacity={0.85} />)}
+                    <YAxis
+                      tick={{ fontSize: 10 }} tickLine={false} axisLine={false} width={56}
+                      tickFormatter={(v) => {
+                        const n = Number(v)
+                        if (Math.abs(n) >= 100000) return `₹${(n/100000).toFixed(1)}L`
+                        if (Math.abs(n) >= 1000) return `₹${(n/1000).toFixed(0)}k`
+                        return `₹${n}`
+                      }}
+                    />
+                    <Tooltip
+                      formatter={(val, name) => [fmtCurrency(Number(val)), String(name) === 'intraday' ? 'Intraday' : 'F&O']}
+                      contentStyle={{ fontSize: 11, borderRadius: 8 }}
+                    />
+                    <Bar dataKey='intraday' radius={[4, 4, 0, 0]} maxBarSize={32} minPointSize={3}
+                      label={{ position: 'top', fontSize: 9, formatter: (v: unknown) => Number(v) !== 0 ? fmtCurrency(Number(v)) : '' }}>
+                      {chartData.map((e, i) => <Cell key={i} fill={e.intraday >= 0 ? '#10b981' : '#f43f5e'} fillOpacity={0.9} />)}
                     </Bar>
-                    <Bar dataKey='fno' radius={[3, 3, 0, 0]} maxBarSize={20}>
-                      {chartData.map((e, i) => <Cell key={i} fill={e.fno >= 0 ? '#f59e0b' : '#ef4444'} fillOpacity={0.85} />)}
+                    <Bar dataKey='fno' radius={[4, 4, 0, 0]} maxBarSize={32} minPointSize={3}
+                      label={{ position: 'top', fontSize: 9, formatter: (v: unknown) => Number(v) !== 0 ? fmtCurrency(Number(v)) : '' }}>
+                      {chartData.map((e, i) => <Cell key={i} fill={e.fno >= 0 ? '#f59e0b' : '#ef4444'} fillOpacity={0.9} />)}
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
