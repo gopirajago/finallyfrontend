@@ -613,11 +613,12 @@ export function TradingAnalysis() {
   })
 
   // Live LTP — every 1s during market hours, paused otherwise
+  // Start as soon as candles are available (don't wait for signals)
   const { data: quoteData } = useQuery({
     queryKey: ['analysis-quote', symbol],
     queryFn: () => analysisApi.getQuote(symbol),
     refetchInterval: marketOpen ? 1000 : false,
-    enabled: !!data,
+    enabled: candlesData !== undefined,
     retry: false,
     staleTime: 0,
   })
