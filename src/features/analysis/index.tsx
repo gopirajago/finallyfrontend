@@ -159,6 +159,21 @@ function IndicatorRow({ label, value, color }: { label: string; value: string | 
 interface FVG { type: 'bullish' | 'bearish'; top: number; bottom: number }
 interface LiqSweep { type: 'bullish_sweep' | 'bearish_sweep'; level: number }
 
+// Returns the floor UTC epoch (seconds) of the candle period containing `nowEpochSec`
+// aligned to IST (UTC+5:30). Interval is in minutes.
+function candlePeriodStart(nowEpochSec: number, intervalMin: number): number {
+  const intervalSec = intervalMin * 60
+  // Align to IST day boundary: IST offset = 19800s
+  const IST_OFFSET = 19800
+  const ist = nowEpochSec + IST_OFFSET
+  // How many seconds into today (IST) are we?
+  const dayStart = Math.floor(ist / 86400) * 86400  // midnight IST
+  const secsIntoDay = ist - dayStart
+  const periodInDay = Math.floor(secsIntoDay / intervalSec) * intervalSec
+  // Convert back to UTC
+  return (dayStart + periodInDay) - IST_OFFSET
+}
+
 function CandleChart({
   candles, ltp, symbol, interval, fvgs, sweeps,
 }: {
@@ -174,6 +189,17 @@ function CandleChart({
   const seriesRef = useRef<any>(null)
   const sweepLinesRef = useRef<any[]>([])
   const fvgCanvasRef = useRef<HTMLCanvasElement>(null)
+
+  // Live candle state — tracked in refs to avoid re-render on every tick
+  const liveCandleRef = useRef<{
+    time: number   // period-start epoch (UTC, IST-aligned) — chart time key
+    open: number
+    high: number
+    low: number
+    close: number
+  } | null>(null)
+
+  const IST_OFFSET = 5.5 * 60 * 60  // seconds, used only for chart time display
 
   // Build chart once
   useEffect(() => {
@@ -219,31 +245,70 @@ function CandleChart({
     return () => {
       window.removeEventListener('resize', resize)
       chart.remove()
+      liveCandleRef.current = null
     }
   }, [])
 
-  // Set candle data
+  // Load historical candle data whenever candles array changes (symbol/interval switch)
   useEffect(() => {
     if (!seriesRef.current || !candles.length) return
-    const IST_OFFSET = 5.5 * 60 * 60
     const data = candles.map(([t, o, h, l, c]) => ({
       time: (t + IST_OFFSET) as any,
       open: o, high: h, low: l, close: c,
     }))
     seriesRef.current.setData(data)
     chartRef.current?.timeScale().fitContent()
-  }, [candles])
 
-  // Live price line
+    // Seed live candle from last historical candle so first tick has correct open/high/low
+    const last = candles[candles.length - 1]
+    const nowEpoch = Math.floor(Date.now() / 1000)
+    const periodStart = candlePeriodStart(nowEpoch, interval)
+    const lastCandlePeriod = candlePeriodStart(last[0], interval)
+
+    if (periodStart === lastCandlePeriod) {
+      // Current period already exists in historical data — resume it
+      liveCandleRef.current = {
+        time: last[0] + IST_OFFSET,
+        open: last[1], high: last[2], low: last[3], close: last[4],
+      }
+    } else {
+      // Historical data is from a prior period; live candle will be created on first tick
+      liveCandleRef.current = null
+    }
+  }, [candles, interval])
+
+  // ── Live tick: TradingView-style candle update ──────────────────────────────
+  // On each LTP tick:
+  //   1. Compute the period-aligned candle start for "now"
+  //   2. If same period as liveCandleRef → extend high/low, update close
+  //   3. If new period → push current live candle as closed, start fresh candle
   useEffect(() => {
     if (!seriesRef.current || !ltp || !candles.length) return
-    const IST_OFFSET = 5.5 * 60 * 60
-    const last = candles[candles.length - 1]
-    seriesRef.current.update({
-      time: (last[0] + IST_OFFSET) as any,
-      open: last[1], high: Math.max(last[2], ltp), low: Math.min(last[3], ltp), close: ltp,
-    })
-  }, [ltp, candles])
+
+    const nowEpoch = Math.floor(Date.now() / 1000)
+    const periodStart = candlePeriodStart(nowEpoch, interval)
+    const chartTime = (periodStart + IST_OFFSET) as any
+
+    const prev = liveCandleRef.current
+
+    if (!prev || chartTime > prev.time) {
+      // New candle period — open at LTP
+      const newCandle = { time: chartTime, open: ltp, high: ltp, low: ltp, close: ltp }
+      liveCandleRef.current = newCandle
+      seriesRef.current.update(newCandle)
+    } else {
+      // Same period — update high/low/close
+      const updated = {
+        time: prev.time,
+        open:  prev.open,
+        high:  Math.max(prev.high, ltp),
+        low:   Math.min(prev.low,  ltp),
+        close: ltp,
+      }
+      liveCandleRef.current = updated
+      seriesRef.current.update(updated)
+    }
+  }, [ltp])
 
   // Liquidity sweep lines
   useEffect(() => {
