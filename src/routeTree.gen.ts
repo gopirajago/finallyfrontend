@@ -29,6 +29,7 @@ import { Route as AuthenticatedUsersIndexRouteImport } from './routes/_authentic
 import { Route as AuthenticatedTasksIndexRouteImport } from './routes/_authenticated/tasks/index'
 import { Route as AuthenticatedSettingsIndexRouteImport } from './routes/_authenticated/settings/index'
 import { Route as AuthenticatedPortfolioIndexRouteImport } from './routes/_authenticated/portfolio/index'
+import { Route as AuthenticatedPnlIndexRouteImport } from './routes/_authenticated/pnl/index'
 import { Route as AuthenticatedOptionsIndexRouteImport } from './routes/_authenticated/options/index'
 import { Route as AuthenticatedHelpCenterIndexRouteImport } from './routes/_authenticated/help-center/index'
 import { Route as AuthenticatedChatsIndexRouteImport } from './routes/_authenticated/chats/index'
@@ -145,6 +146,11 @@ const AuthenticatedPortfolioIndexRoute =
     path: '/portfolio/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedPnlIndexRoute = AuthenticatedPnlIndexRouteImport.update({
+  id: '/pnl/',
+  path: '/pnl/',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedOptionsIndexRoute =
   AuthenticatedOptionsIndexRouteImport.update({
     id: '/options/',
@@ -261,6 +267,7 @@ export interface FileRoutesByFullPath {
   '/chats/': typeof AuthenticatedChatsIndexRoute
   '/help-center/': typeof AuthenticatedHelpCenterIndexRoute
   '/options/': typeof AuthenticatedOptionsIndexRoute
+  '/pnl/': typeof AuthenticatedPnlIndexRoute
   '/portfolio/': typeof AuthenticatedPortfolioIndexRoute
   '/settings/': typeof AuthenticatedSettingsIndexRoute
   '/tasks/': typeof AuthenticatedTasksIndexRoute
@@ -294,6 +301,7 @@ export interface FileRoutesByTo {
   '/chats': typeof AuthenticatedChatsIndexRoute
   '/help-center': typeof AuthenticatedHelpCenterIndexRoute
   '/options': typeof AuthenticatedOptionsIndexRoute
+  '/pnl': typeof AuthenticatedPnlIndexRoute
   '/portfolio': typeof AuthenticatedPortfolioIndexRoute
   '/settings': typeof AuthenticatedSettingsIndexRoute
   '/tasks': typeof AuthenticatedTasksIndexRoute
@@ -332,6 +340,7 @@ export interface FileRoutesById {
   '/_authenticated/chats/': typeof AuthenticatedChatsIndexRoute
   '/_authenticated/help-center/': typeof AuthenticatedHelpCenterIndexRoute
   '/_authenticated/options/': typeof AuthenticatedOptionsIndexRoute
+  '/_authenticated/pnl/': typeof AuthenticatedPnlIndexRoute
   '/_authenticated/portfolio/': typeof AuthenticatedPortfolioIndexRoute
   '/_authenticated/settings/': typeof AuthenticatedSettingsIndexRoute
   '/_authenticated/tasks/': typeof AuthenticatedTasksIndexRoute
@@ -368,6 +377,7 @@ export interface FileRouteTypes {
     | '/chats/'
     | '/help-center/'
     | '/options/'
+    | '/pnl/'
     | '/portfolio/'
     | '/settings/'
     | '/tasks/'
@@ -401,6 +411,7 @@ export interface FileRouteTypes {
     | '/chats'
     | '/help-center'
     | '/options'
+    | '/pnl'
     | '/portfolio'
     | '/settings'
     | '/tasks'
@@ -438,6 +449,7 @@ export interface FileRouteTypes {
     | '/_authenticated/chats/'
     | '/_authenticated/help-center/'
     | '/_authenticated/options/'
+    | '/_authenticated/pnl/'
     | '/_authenticated/portfolio/'
     | '/_authenticated/settings/'
     | '/_authenticated/tasks/'
@@ -601,6 +613,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPortfolioIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/pnl/': {
+      id: '/_authenticated/pnl/'
+      path: '/pnl'
+      fullPath: '/pnl/'
+      preLoaderRoute: typeof AuthenticatedPnlIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/options/': {
       id: '/_authenticated/options/'
       path: '/options'
@@ -745,6 +764,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedChatsIndexRoute: typeof AuthenticatedChatsIndexRoute
   AuthenticatedHelpCenterIndexRoute: typeof AuthenticatedHelpCenterIndexRoute
   AuthenticatedOptionsIndexRoute: typeof AuthenticatedOptionsIndexRoute
+  AuthenticatedPnlIndexRoute: typeof AuthenticatedPnlIndexRoute
   AuthenticatedPortfolioIndexRoute: typeof AuthenticatedPortfolioIndexRoute
   AuthenticatedTasksIndexRoute: typeof AuthenticatedTasksIndexRoute
   AuthenticatedUsersIndexRoute: typeof AuthenticatedUsersIndexRoute
@@ -759,6 +779,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedChatsIndexRoute: AuthenticatedChatsIndexRoute,
   AuthenticatedHelpCenterIndexRoute: AuthenticatedHelpCenterIndexRoute,
   AuthenticatedOptionsIndexRoute: AuthenticatedOptionsIndexRoute,
+  AuthenticatedPnlIndexRoute: AuthenticatedPnlIndexRoute,
   AuthenticatedPortfolioIndexRoute: AuthenticatedPortfolioIndexRoute,
   AuthenticatedTasksIndexRoute: AuthenticatedTasksIndexRoute,
   AuthenticatedUsersIndexRoute: AuthenticatedUsersIndexRoute,
