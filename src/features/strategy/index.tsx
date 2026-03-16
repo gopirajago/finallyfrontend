@@ -16,7 +16,9 @@ import { ConfigDrawer } from '@/components/config-drawer'
 import { StrategyConfigDialog } from './components/strategy-config-dialog'
 import { SignalStrengthCard } from './components/signal-strength-card'
 import { ActiveTradeCard } from './components/active-trade-card'
+import { ActiveStrategiesCard } from './components/active-strategies-card'
 import type { StrategySignal } from '@/lib/strategy-api'
+import { AVAILABLE_STRATEGIES } from '@/lib/strategy-api'
 
 const fmtCurrency = (v: number) =>
   new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(v)
@@ -136,9 +138,15 @@ export function StrategyDashboard() {
       <Main className='flex flex-col gap-4'>
         <div className='flex items-center justify-between'>
           <div>
-            <h1 className='text-xl font-bold tracking-tight text-gradient-emerald'>Skew Hunter Strategy</h1>
+            <h1 className='text-xl font-bold tracking-tight text-gradient-emerald'>
+              {config?.enabled_strategies && config.enabled_strategies.length > 1 
+                ? 'Multi-Strategy Trading' 
+                : 'Automated Strategy Trading'}
+            </h1>
             <p className='text-xs text-muted-foreground mt-0.5'>
-              Options trading based on volatility skew and volume/OI patterns
+              {config?.enabled_strategies && config.enabled_strategies.length > 0 
+                ? `Running ${config.enabled_strategies.length} ${config.enabled_strategies.length === 1 ? 'strategy' : 'strategies'}`
+                : 'Options trading with automated signal generation'}
               {config?.symbols && config.symbols.length > 0 && (
                 <span className='ml-2 text-primary font-semibold'>
                   • Monitoring: {config.symbols.join(', ')}
@@ -177,6 +185,14 @@ export function StrategyDashboard() {
             <AlertTitle className='font-semibold'>Strategy Inactive</AlertTitle>
             <AlertDescription>Enable the strategy to start receiving signals and executing trades</AlertDescription>
           </Alert>
+        )}
+
+        {/* Active Strategies */}
+        {config && config.enabled_strategies && config.enabled_strategies.length > 0 && (
+          <ActiveStrategiesCard 
+            enabledStrategies={config.enabled_strategies}
+            allocation={config.strategy_allocation || {}}
+          />
         )}
 
         {/* Stats Grid */}
