@@ -59,39 +59,39 @@ export function StrategySelector({
           return (
             <Card
               key={strategy.type}
-              className={`p-4 cursor-pointer transition-all ${
+              className={`p-3 cursor-pointer transition-all ${
                 isSelected ? 'ring-2 ring-primary' : 'hover:ring-1 hover:ring-gray-300'
               }`}
               onClick={() => toggleStrategy(strategy.type)}
             >
-              <div className="flex items-start justify-between mb-3">
+              <div className="flex items-start justify-between mb-2">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
-                    <h4 className="font-semibold">{strategy.name}</h4>
-                    {isSelected && <Check className="h-4 w-4 text-primary" />}
+                    <h4 className="text-sm font-semibold">{strategy.name}</h4>
+                    {isSelected && <Check className="h-3 w-3 text-primary" />}
                   </div>
-                  <p className="text-sm text-muted-foreground mb-2">{strategy.description}</p>
+                  <p className="text-xs text-muted-foreground mb-1.5">{strategy.description}</p>
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-2 mb-3">
-                <Badge variant="outline" className="text-xs">
-                  Win Rate: {strategy.winRate}
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0.5">
+                  {strategy.winRate}
                 </Badge>
-                <Badge variant="outline" className={`text-xs ${getRiskColor(strategy.riskLevel)}`}>
-                  {strategy.riskLevel} Risk
+                <Badge variant="outline" className={`text-[10px] px-1.5 py-0.5 ${getRiskColor(strategy.riskLevel)}`}>
+                  {strategy.riskLevel}
                 </Badge>
               </div>
 
-              <div className="text-xs text-muted-foreground mb-3">
+              <div className="text-[10px] text-muted-foreground mb-2">
                 <strong>Best for:</strong> {strategy.bestFor}
               </div>
 
               {isSelected && (
-                <div className="pt-3 border-t" onClick={(e) => e.stopPropagation()}>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="text-sm font-medium">Capital Allocation</label>
-                    <span className="text-sm font-semibold">{currentAllocation}%</span>
+                <div className="pt-2 border-t" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-medium">Allocation</label>
+                    <span className="text-xs font-semibold">{currentAllocation}%</span>
                   </div>
                   <input
                     type="range"
@@ -100,7 +100,7 @@ export function StrategySelector({
                     min={0}
                     max={100}
                     step={5}
-                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                    className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer"
                   />
                 </div>
               )}
