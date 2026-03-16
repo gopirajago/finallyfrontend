@@ -17,6 +17,7 @@ import { StrategyConfigDialog } from './components/strategy-config-dialog'
 import { SignalStrengthCard } from './components/signal-strength-card'
 import { ActiveTradeCard } from './components/active-trade-card'
 import { ActiveStrategiesCard } from './components/active-strategies-card'
+import { MarketDataCard } from './components/market-data-card'
 import type { StrategySignal } from '@/lib/strategy-api'
 
 const fmtCurrency = (v: number) =>
@@ -122,6 +123,22 @@ export function StrategyDashboard() {
   const signals = signalsQ.data ?? []
   const trades = tradesQ.data ?? []
   const stats = statsQ.data
+
+  const niftyMarketDataQ = useQuery({
+    queryKey: ['market-data', 'NIFTY'],
+    queryFn: () => strategyApi.getMarketData('NIFTY'),
+    retry: false,
+    refetchInterval: 60_000, // Refresh every minute
+    enabled: config?.symbols?.includes('NIFTY') ?? false,
+  })
+
+  const sensexMarketDataQ = useQuery({
+    queryKey: ['market-data', 'SENSEX'],
+    queryFn: () => strategyApi.getMarketData('SENSEX'),
+    retry: false,
+    refetchInterval: 60_000,
+    enabled: config?.symbols?.includes('SENSEX') ?? false,
+  })
 
   return (
     <>
@@ -240,6 +257,34 @@ export function StrategyDashboard() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Market Data */}
+        {config?.symbols && config.symbols.length > 0 && (
+          <div className='grid grid-cols-1 lg:grid-cols-2 gap-4'>
+            {config.symbols.includes('NIFTY') && (
+              <MarketDataCard
+                symbol="NIFTY"
+                vix={niftyMarketDataQ.data?.vix}
+                spotPrice={niftyMarketDataQ.data?.spot_price}
+                trend={niftyMarketDataQ.data?.trend}
+                volatility={niftyMarketDataQ.data?.volatility}
+                priceChange={niftyMarketDataQ.data?.price_change}
+                priceChangePercent={niftyMarketDataQ.data?.price_change_percent}
+              />
+            )}
+            {config.symbols.includes('SENSEX') && (
+              <MarketDataCard
+                symbol="SENSEX"
+                vix={sensexMarketDataQ.data?.vix}
+                spotPrice={sensexMarketDataQ.data?.spot_price}
+                trend={sensexMarketDataQ.data?.trend}
+                volatility={sensexMarketDataQ.data?.volatility}
+                priceChange={sensexMarketDataQ.data?.price_change}
+                priceChangePercent={sensexMarketDataQ.data?.price_change_percent}
+              />
+            )}
+          </div>
+        )}
 
         {/* Signal Strength & Active Trade */}
         <div className='grid grid-cols-1 lg:grid-cols-2 gap-4'>

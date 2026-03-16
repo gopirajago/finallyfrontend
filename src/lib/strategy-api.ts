@@ -162,6 +162,17 @@ export interface StrategyStats {
   max_loss: number
 }
 
+export interface MarketData {
+  symbol: string
+  spot_price: number
+  vix: number
+  trend: 'bullish' | 'bearish' | 'neutral'
+  volatility: 'low' | 'medium' | 'high'
+  price_change: number
+  price_change_percent: number
+  timestamp: string
+}
+
 export const strategyApi = {
   // Config
   getConfig: async (): Promise<StrategyConfig> => {
@@ -198,6 +209,14 @@ export const strategyApi = {
   // Stats
   getStats: async (): Promise<StrategyStats> => {
     const response = await apiClient.get('/strategy/stats')
+    return response.data
+  },
+
+  // Market Data
+  getMarketData: async (symbol: string): Promise<MarketData> => {
+    const response = await apiClient.get('/strategy/market-data', {
+      params: { symbol }
+    })
     return response.data
   },
 }
