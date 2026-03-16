@@ -10,6 +10,7 @@ import {
   Wrench,
   UserCog,
   Command,
+  Zap,
 } from 'lucide-react'
 import { type SidebarData } from '../types'
 
@@ -49,6 +50,11 @@ export const sidebarData: SidebarData = {
           title: 'Options',
           url: '/options',
           icon: CandlestickChart,
+        },
+        {
+          title: 'Strategy',
+          url: '/strategy',
+          icon: Zap,
         },
         {
           title: 'Profit & Loss',

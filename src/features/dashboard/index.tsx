@@ -189,16 +189,16 @@ export function Dashboard() {
             </p>
           </div>
           <Button size='sm' onClick={() => captureMutation.mutate()} disabled={captureMutation.isPending}
-            className='gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white h-8 text-xs'>
+            className='gap-1.5 bg-primary-gradient hover-lift text-white h-8 text-xs'>
             <RefreshCw className={`h-3 w-3 ${captureMutation.isPending ? 'animate-spin' : ''}`} />
             {captureMutation.isPending ? 'Capturing…' : 'Capture Now'}
           </Button>
         </div>
 
         {noData && (
-          <Alert className='border-indigo-200 bg-indigo-50/60 dark:border-indigo-800 dark:bg-indigo-950/40'>
-            <AlertCircle className='h-4 w-4 text-indigo-600 dark:text-indigo-400' />
-            <AlertTitle className='text-indigo-700 dark:text-indigo-300'>No snapshot yet</AlertTitle>
+          <Alert className='alert-emerald'>
+            <AlertCircle className='h-4 w-4 icon-primary' />
+            <AlertTitle className='font-semibold'>No snapshot yet</AlertTitle>
             <AlertDescription>Click <strong>Capture Now</strong> to take your first portfolio snapshot.</AlertDescription>
           </Alert>
         )}
@@ -210,9 +210,9 @@ export function Dashboard() {
             <CardContent className='p-3'>
               <div className='flex items-center justify-between mb-1.5'>
                 <p className='text-[11px] font-medium text-muted-foreground'>Total Capital</p>
-                <Wallet className='h-3.5 w-3.5 text-indigo-400' />
+                <Wallet className='h-3.5 w-3.5 icon-primary' />
               </div>
-              {isLoading ? <Skeleton className='h-6 w-24' /> : <p className='text-base font-bold tabular-nums text-indigo-600 dark:text-indigo-400'>{live ? fmtCurrency(live.total_capital) : snap ? fmtCurrency(snap.total_capital) : '—'}</p>}
+              {isLoading ? <Skeleton className='h-6 w-24' /> : <p className='text-base font-bold tabular-nums text-primary'>{live ? fmtCurrency(live.total_capital) : snap ? fmtCurrency(snap.total_capital) : '—'}</p>}
               <p className='text-[10px] text-muted-foreground mt-0.5'>{isLoading ? '' : live ? `Cash: ${fmtCurrency(live.available_cash)}` : snap ? `Cash: ${fmtCurrency(snap.available_cash)}` : ''}</p>
             </CardContent>
           </Card>
@@ -221,9 +221,9 @@ export function Dashboard() {
             <CardContent className='p-3'>
               <div className='flex items-center justify-between mb-1.5'>
                 <p className='text-[11px] font-medium text-muted-foreground'>Holdings Value</p>
-                <BarChart2 className='h-3.5 w-3.5 text-indigo-400' />
+                <BarChart2 className='h-3.5 w-3.5 icon-primary' />
               </div>
-              {isLoading ? <Skeleton className='h-6 w-24' /> : <p className='text-base font-bold tabular-nums text-indigo-600 dark:text-indigo-400'>{live ? fmtCurrency(live.holdings_value) : snap ? fmtCurrency(snap.holdings_value) : '—'}</p>}
+              {isLoading ? <Skeleton className='h-6 w-24' /> : <p className='text-base font-bold tabular-nums text-primary'>{live ? fmtCurrency(live.holdings_value) : snap ? fmtCurrency(snap.holdings_value) : '—'}</p>}
               <p className='text-[10px] text-muted-foreground mt-0.5'>{isLoading ? '' : live ? `Invested: ${fmtCurrency(live.total_invested)}` : snap ? `Invested: ${fmtCurrency(snap.total_invested)}` : ''}</p>
             </CardContent>
           </Card>
@@ -232,7 +232,7 @@ export function Dashboard() {
             <CardContent className='p-3'>
               <div className='flex items-center justify-between mb-1.5'>
                 <p className='text-[11px] font-medium text-muted-foreground'>Equity P&L</p>
-                {totalPnl !== null && (totalPnl >= 0 ? <TrendingUp className='h-3.5 w-3.5 text-emerald-500' /> : <TrendingDown className='h-3.5 w-3.5 text-rose-500' />)}
+                {totalPnl !== null && (totalPnl >= 0 ? <TrendingUp className='h-3.5 w-3.5 icon-success' /> : <TrendingDown className='h-3.5 w-3.5 icon-danger' />)}
               </div>
               {isLoading ? <Skeleton className='h-6 w-24' /> : <p className={`text-base font-bold tabular-nums ${pnlColor(totalPnl)}`}>{totalPnl !== null ? fmtCurrency(totalPnl) : '—'}</p>}
               <p className='text-[10px] text-muted-foreground mt-0.5'>{totalPnlPct !== null ? fmtPct(totalPnlPct) : 'All time'}</p>
@@ -243,7 +243,7 @@ export function Dashboard() {
             <CardContent className='p-3'>
               <div className='flex items-center justify-between mb-1.5'>
                 <p className='text-[11px] font-medium text-muted-foreground'>Today's P&L</p>
-                {todayPnl !== null && (todayPnl >= 0 ? <TrendingUp className='h-3.5 w-3.5 text-emerald-500' /> : <TrendingDown className='h-3.5 w-3.5 text-rose-500' />)}
+                {todayPnl !== null && (todayPnl >= 0 ? <TrendingUp className='h-3.5 w-3.5 icon-success' /> : <TrendingDown className='h-3.5 w-3.5 icon-danger' />)}
               </div>
               {historyQ.isLoading ? <Skeleton className='h-6 w-24' /> : <p className={`text-base font-bold tabular-nums ${pnlColor(todayPnl)}`}>{todayPnl !== null ? fmtCurrency(todayPnl) : '—'}</p>}
               <p className='text-[10px] text-muted-foreground mt-0.5'>{todayPnlSub}</p>
@@ -254,7 +254,7 @@ export function Dashboard() {
             <CardContent className='p-3'>
               <div className='flex items-center justify-between mb-1.5'>
                 <p className='text-[11px] font-medium text-muted-foreground'>Intraday P&L</p>
-                <Zap className='h-3.5 w-3.5 text-amber-400' />
+                <Zap className='h-3.5 w-3.5 icon-warning' />
               </div>
               {liveQ.isLoading ? <Skeleton className='h-6 w-24' /> : <p className={`text-base font-bold tabular-nums ${pnlColor(intradayPnl)}`}>{intradayPnl !== null ? fmtCurrency(intradayPnl) : '—'}</p>}
               <p className='text-[10px] text-muted-foreground mt-0.5'>Today · equity</p>
@@ -265,7 +265,7 @@ export function Dashboard() {
             <CardContent className='p-3'>
               <div className='flex items-center justify-between mb-1.5'>
                 <p className='text-[11px] font-medium text-muted-foreground'>F&O P&L</p>
-                <Activity className='h-3.5 w-3.5 text-violet-400' />
+                <Activity className='h-3.5 w-3.5 icon-accent' />
               </div>
               {liveQ.isLoading ? <Skeleton className='h-6 w-24' /> : <p className={`text-base font-bold tabular-nums ${pnlColor(fnoPnl)}`}>{fnoPnl !== null ? fmtCurrency(fnoPnl) : '—'}</p>}
               <p className='text-[10px] text-muted-foreground mt-0.5'>Today · F&O</p>
@@ -279,7 +279,7 @@ export function Dashboard() {
           <Card className='border-0 shadow-sm'>
             <CardHeader className='py-3 px-4'>
               <CardTitle className='text-xs font-semibold flex items-center gap-1.5 text-muted-foreground uppercase tracking-wide'>
-                <BarChart2 className='h-3.5 w-3.5 text-indigo-500' /> Equity P&L · last 30 days
+                <BarChart2 className='h-3.5 w-3.5 icon-primary' /> Equity P&L · last 30 days
               </CardTitle>
             </CardHeader>
             <CardContent className='px-2 pb-3 pt-0'>
@@ -307,7 +307,7 @@ export function Dashboard() {
                     />
                     <Bar dataKey='equity' radius={[4, 4, 0, 0]} maxBarSize={48} minPointSize={3}
                       label={{ position: 'top', fontSize: 9, formatter: (v: unknown) => Number(v) !== 0 ? fmtCurrency(Number(v)) : '' }}>
-                      {chartData.map((e, i) => <Cell key={i} fill={e.equity >= 0 ? '#6366f1' : '#f43f5e'} fillOpacity={0.9} />)}
+                      {chartData.map((e, i) => <Cell key={i} fill={e.equity >= 0 ? '#10b981' : '#ef4444'} fillOpacity={0.9} />)}
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
@@ -319,7 +319,7 @@ export function Dashboard() {
           <Card className='border-0 shadow-sm'>
             <CardHeader className='py-3 px-4'>
               <CardTitle className='text-xs font-semibold flex items-center gap-1.5 text-muted-foreground uppercase tracking-wide'>
-                <Zap className='h-3.5 w-3.5 text-amber-500' /> Intraday &amp; F&O · last 30 days
+                <Zap className='h-3.5 w-3.5 icon-warning' /> Intraday &amp; F&O · last 30 days
               </CardTitle>
             </CardHeader>
             <CardContent className='px-2 pb-3 pt-0'>
@@ -347,7 +347,7 @@ export function Dashboard() {
                     />
                     <Bar dataKey='intraday' radius={[4, 4, 0, 0]} maxBarSize={32} minPointSize={3}
                       label={{ position: 'top', fontSize: 9, formatter: (v: unknown) => Number(v) !== 0 ? fmtCurrency(Number(v)) : '' }}>
-                      {chartData.map((e, i) => <Cell key={i} fill={e.intraday >= 0 ? '#10b981' : '#f43f5e'} fillOpacity={0.9} />)}
+                      {chartData.map((e, i) => <Cell key={i} fill={e.intraday >= 0 ? '#22c55e' : '#ef4444'} fillOpacity={0.9} />)}
                     </Bar>
                     <Bar dataKey='fno' radius={[4, 4, 0, 0]} maxBarSize={32} minPointSize={3}
                       label={{ position: 'top', fontSize: 9, formatter: (v: unknown) => Number(v) !== 0 ? fmtCurrency(Number(v)) : '' }}>
@@ -366,7 +366,7 @@ export function Dashboard() {
           <Card className='border-0 shadow-sm'>
             <CardHeader className='py-3 px-4'>
               <CardTitle className='text-xs font-semibold flex items-center gap-1.5 text-muted-foreground uppercase tracking-wide'>
-                <BarChart2 className='h-3.5 w-3.5 text-indigo-500' /> Stock Holdings
+                <BarChart2 className='h-3.5 w-3.5 icon-primary' /> Stock Holdings
                 {holdings.length > 0 && <span className='ml-auto normal-case font-normal'>{holdings.length} stocks</span>}
               </CardTitle>
             </CardHeader>
@@ -408,7 +408,7 @@ export function Dashboard() {
           <Card className='border-0 shadow-sm'>
             <CardHeader className='py-3 px-4'>
               <CardTitle className='text-xs font-semibold flex items-center gap-1.5 text-muted-foreground uppercase tracking-wide'>
-                <Zap className='h-3.5 w-3.5 text-amber-500' /> Intraday &amp; F&O Positions
+                <Zap className='h-3.5 w-3.5 icon-warning' /> Intraday &amp; F&O Positions
                 {positions.length > 0 && <span className='ml-auto normal-case font-normal'>{positions.length} trades</span>}
               </CardTitle>
             </CardHeader>
