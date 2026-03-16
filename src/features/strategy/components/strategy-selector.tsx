@@ -51,7 +51,7 @@ export function StrategySelector({
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-3 md:grid-cols-4">
         {AVAILABLE_STRATEGIES.map((strategy) => {
           const isSelected = selectedStrategies.includes(strategy.type)
           const currentAllocation = allocation[strategy.type] || 0
