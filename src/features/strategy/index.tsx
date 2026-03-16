@@ -18,6 +18,9 @@ import { SignalStrengthCard } from './components/signal-strength-card'
 import { ActiveTradeCard } from './components/active-trade-card'
 import { ActiveStrategiesCard } from './components/active-strategies-card'
 import { MarketDataCard } from './components/market-data-card'
+import { CandlestickPatternsCard } from './components/candlestick-patterns-card'
+import { TechnicalIndicatorsCard } from './components/technical-indicators-card'
+import { ClaudeAnalysisCard } from './components/claude-analysis-card'
 import type { StrategySignal } from '@/lib/strategy-api'
 
 const fmtCurrency = (v: number) =>
@@ -299,6 +302,43 @@ export function StrategyDashboard() {
             isLoading={tradesQ.isLoading}
           />
         </div>
+
+        {/* Enhanced Signal Analysis */}
+        {signals[0] && (signals[0].candlestick_patterns || signals[0].technical_indicators || signals[0].claude_validated !== undefined) && (
+          <div>
+            <h2 className='text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide'>Enhanced Analysis</h2>
+            <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'>
+              {/* Candlestick Patterns */}
+              {signals[0].candlestick_patterns && signals[0].candlestick_signal && (
+                <CandlestickPatternsCard
+                  patterns={signals[0].candlestick_patterns}
+                  signal={signals[0].candlestick_signal}
+                  confidence={signals[0].combined_confidence}
+                />
+              )}
+
+              {/* Technical Indicators */}
+              {signals[0].technical_indicators && (
+                <TechnicalIndicatorsCard
+                  indicators={signals[0].technical_indicators}
+                  signal={signals[0].technical_signal}
+                  currentPrice={signals[0].spot_price}
+                />
+              )}
+
+              {/* Claude AI Analysis */}
+              {signals[0].claude_validated !== undefined && signals[0].claude_reasoning && (
+                <ClaudeAnalysisCard
+                  validated={signals[0].claude_validated}
+                  confidence={signals[0].claude_confidence || 0}
+                  reasoning={signals[0].claude_reasoning}
+                  risks={signals[0].claude_risks}
+                  recommendation={signals[0].claude_recommendation}
+                />
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Signals & Trades */}
         <div className='grid grid-cols-1 lg:grid-cols-2 gap-4'>

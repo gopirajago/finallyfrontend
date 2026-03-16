@@ -114,6 +114,9 @@ export interface StrategyConfig {
 
 export interface StrategySignal {
   id: number
+  user_id: number
+  strategy_name: string
+  symbol: string
   signal_type: string
   alpha1: number
   alpha2: number
@@ -127,6 +130,34 @@ export interface StrategySignal {
   is_active: boolean
   is_traded: boolean
   signal_time: string
+  created_at: string
+  candlestick_patterns?: string[]
+  candlestick_signal?: 'bullish' | 'bearish' | 'neutral'
+  technical_indicators?: TechnicalIndicators
+  technical_signal?: 'bullish' | 'bearish' | 'neutral'
+  claude_validated?: boolean
+  claude_confidence?: number
+  claude_reasoning?: string
+  claude_risks?: string
+  claude_recommendation?: string
+  combined_confidence?: number
+  final_signal?: string
+}
+
+export interface TechnicalIndicators {
+  rsi?: number
+  macd?: number
+  macd_signal?: number
+  macd_histogram?: number
+  sma_20?: number
+  sma_50?: number
+  ema_12?: number
+  ema_26?: number
+  bb_upper?: number
+  bb_middle?: number
+  bb_lower?: number
+  support?: number
+  resistance?: number
 }
 
 export interface StrategyTrade {
