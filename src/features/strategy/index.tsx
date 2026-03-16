@@ -18,7 +18,6 @@ import { SignalStrengthCard } from './components/signal-strength-card'
 import { ActiveTradeCard } from './components/active-trade-card'
 import { ActiveStrategiesCard } from './components/active-strategies-card'
 import type { StrategySignal } from '@/lib/strategy-api'
-import { AVAILABLE_STRATEGIES } from '@/lib/strategy-api'
 
 const fmtCurrency = (v: number) =>
   new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(v)
@@ -277,6 +276,7 @@ export function StrategyDashboard() {
                     <TableHeader>
                       <TableRow className='hover:bg-transparent'>
                         <TableHead className='pl-4 h-8 text-xs'>Time</TableHead>
+                        <TableHead className='h-8 text-xs'>Strategy</TableHead>
                         <TableHead className='h-8 text-xs'>Signal</TableHead>
                         <TableHead className='text-right h-8 text-xs'>Strike</TableHead>
                         <TableHead className='text-right h-8 text-xs'>Alpha1</TableHead>
@@ -287,6 +287,9 @@ export function StrategyDashboard() {
                       {signals.map((signal) => (
                         <TableRow key={signal.id} className='hover:bg-muted/30'>
                           <TableCell className='pl-4 py-2 text-xs font-mono'>{fmtTime(signal.signal_time)}</TableCell>
+                          <TableCell className='py-2 text-xs text-muted-foreground capitalize'>
+                            {(signal as any).strategy_type?.replace(/_/g, ' ') || 'Skew Hunter'}
+                          </TableCell>
                           <TableCell className='py-2'><SignalBadge signal={signal} /></TableCell>
                           <TableCell className='text-right py-2 text-xs font-semibold'>{signal.strike_price} {signal.option_type}</TableCell>
                           <TableCell className='text-right py-2 text-xs font-mono'>{signal.alpha1.toFixed(2)}</TableCell>
@@ -319,6 +322,7 @@ export function StrategyDashboard() {
                     <TableHeader>
                       <TableRow className='hover:bg-transparent'>
                         <TableHead className='pl-4 h-8 text-xs'>Entry</TableHead>
+                        <TableHead className='h-8 text-xs'>Strategy</TableHead>
                         <TableHead className='h-8 text-xs'>Type</TableHead>
                         <TableHead className='text-right h-8 text-xs'>Strike</TableHead>
                         <TableHead className='text-right h-8 text-xs'>Status</TableHead>
@@ -329,6 +333,9 @@ export function StrategyDashboard() {
                       {trades.map((trade) => (
                         <TableRow key={trade.id} className='hover:bg-muted/30'>
                           <TableCell className='pl-4 py-2 text-xs font-mono'>{fmtTime(trade.entry_time)}</TableCell>
+                          <TableCell className='py-2 text-xs text-muted-foreground capitalize'>
+                            {trade.strategy_name?.replace(/_/g, ' ') || 'Skew Hunter'}
+                          </TableCell>
                           <TableCell className='py-2 text-xs font-semibold'>{trade.trade_type.replace('_', ' ')}</TableCell>
                           <TableCell className='text-right py-2 text-xs font-semibold'>{trade.strike_price} {trade.option_type}</TableCell>
                           <TableCell className='text-right py-2'>
