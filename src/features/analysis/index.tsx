@@ -5,8 +5,13 @@ import {
   Shield, Zap, BarChart2, AlertCircle, ChevronUp, ChevronDown,
   Bot, Newspaper, Sparkles, CheckCircle2,
 } from 'lucide-react'
-import { createChart, ColorType, CrosshairMode, CandlestickSeries } from 'lightweight-charts'
-import { analysisApi, INSTRUMENTS, INTERVALS, type TradeSignal, type Analysis, type AISignal } from '@/lib/analysis-api'
+import {
+  createChart, ColorType, CrosshairMode, CandlestickSeries, LineSeries,
+} from 'lightweight-charts'
+import {
+  analysisApi, INSTRUMENTS, INTERVALS,
+  type TradeSignal, type Analysis, type AISignal, type Overlays,
+} from '@/lib/analysis-api'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
@@ -18,20 +23,18 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
-// ── helpers ─────────────────────────────────────────────────────────────────
+// ── helpers ──────────────────────────────────────────────────────────────────
 
 const fmt = (v: number) =>
   new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v)
-
 const fmtCurrency = (v: number) => `₹${fmt(v)}`
 
 function isMarketOpen(): boolean {
-  // NSE/BSE: Mon–Fri, 09:15 – 15:30 IST (UTC+5:30)
   const now = new Date()
-  const istOffset = 5.5 * 60 * 60 * 1000
-  const ist = new Date(now.getTime() + istOffset - now.getTimezoneOffset() * 60 * 1000)
-  const day = ist.getDay() // 0=Sun, 6=Sat
+  const ist = new Date(now.getTime() + (5.5 * 3600000) - now.getTimezoneOffset() * 60000)
+  const day = ist.getDay()
   if (day === 0 || day === 6) return false
   const hhmm = ist.getHours() * 100 + ist.getMinutes()
   return hhmm >= 915 && hhmm < 1530
@@ -39,35 +42,21 @@ function isMarketOpen(): boolean {
 
 // ── sub-components ───────────────────────────────────────────────────────────
 
-function InstrumentButton({
-  label, active, onClick,
-}: { label: string; active: boolean; onClick: () => void }) {
+function IBtn({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
   return (
-    <button
-      onClick={onClick}
-      className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-150 ${
-        active
-          ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200 dark:shadow-indigo-900'
-          : 'bg-white dark:bg-zinc-900 text-muted-foreground border border-border hover:border-indigo-300 hover:text-indigo-600 dark:hover:border-indigo-700'
-      }`}
-    >
+    <button onClick={onClick} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+      active ? 'bg-indigo-600 text-white shadow shadow-indigo-200 dark:shadow-indigo-900'
+             : 'text-muted-foreground border border-border hover:border-indigo-300 hover:text-indigo-600'}`}>
       {label}
     </button>
   )
 }
 
-function IntervalButton({
-  label, active, onClick,
-}: { label: string; active: boolean; onClick: () => void }) {
+function IvBtn({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
   return (
-    <button
-      onClick={onClick}
-      className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
-        active
-          ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300'
-          : 'text-muted-foreground hover:bg-muted'
-      }`}
-    >
+    <button onClick={onClick} className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
+      active ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300'
+             : 'text-muted-foreground hover:bg-muted'}`}>
       {label}
     </button>
   )
@@ -75,81 +64,70 @@ function IntervalButton({
 
 function SignalCard({ signal }: { signal: TradeSignal }) {
   const isLong = signal.direction === 'LONG'
-  const rr = signal.tp && signal.sl && signal.entry
-    ? Math.abs(signal.tp - signal.entry) / Math.abs(signal.entry - signal.sl)
-    : null
-
+  const dots = Math.min(signal.confluence, 4)
   return (
-    <div className={`rounded-2xl border p-4 space-y-3 ${
-      isLong
-        ? 'border-emerald-200 bg-emerald-50/50 dark:border-emerald-800 dark:bg-emerald-950/30'
-        : 'border-rose-200 bg-rose-50/50 dark:border-rose-800 dark:bg-rose-950/30'
-    }`}>
-      <div className='flex items-center justify-between'>
-        <div className='flex items-center gap-2'>
+    <div className={`rounded-xl border p-3 space-y-2.5 ${
+      isLong ? 'border-emerald-200 bg-emerald-50/40 dark:border-emerald-800/60 dark:bg-emerald-950/20'
+             : 'border-rose-200 bg-rose-50/40 dark:border-rose-800/60 dark:bg-rose-950/20'}`}>
+      <div className='flex items-center justify-between gap-2'>
+        <div className='flex items-center gap-1.5 min-w-0'>
           {isLong
-            ? <TrendingUp className='h-4 w-4 text-emerald-600 dark:text-emerald-400' />
-            : <TrendingDown className='h-4 w-4 text-rose-600 dark:text-rose-400' />
-          }
-          <span className={`text-sm font-bold ${
-            isLong ? 'text-emerald-700 dark:text-emerald-300' : 'text-rose-700 dark:text-rose-300'
-          }`}>
+            ? <TrendingUp className='h-3.5 w-3.5 text-emerald-500 shrink-0' />
+            : <TrendingDown className='h-3.5 w-3.5 text-rose-500 shrink-0' />}
+          <span className={`text-xs font-bold ${isLong ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
             {signal.direction}
           </span>
-          <span className='text-xs text-muted-foreground'>·</span>
-          <span className='text-xs font-medium text-muted-foreground'>{signal.strategy}</span>
+          <span className='text-xs text-muted-foreground truncate'>{signal.strategy}</span>
         </div>
-        <Badge
-          variant='outline'
-          className={`text-xs ${
-            signal.strength === 'High'
-              ? 'border-amber-400 text-amber-600 dark:text-amber-400'
-              : 'border-blue-300 text-blue-600 dark:text-blue-400'
-          }`}
-        >
-          {signal.strength}
-        </Badge>
-      </div>
-
-      <p className='text-xs text-muted-foreground'>{signal.reason}</p>
-
-      <div className='grid grid-cols-3 gap-2'>
-        <div className='rounded-lg bg-white/70 dark:bg-zinc-900/70 p-2 text-center'>
-          <div className='text-xs text-muted-foreground mb-0.5 flex items-center justify-center gap-1'>
-            <Target className='h-3 w-3' /> Entry
+        <div className='flex items-center gap-1.5 shrink-0'>
+          <div className='flex gap-0.5'>
+            {[1,2,3,4].map(i => (
+              <div key={i} className={`w-1.5 h-1.5 rounded-full ${i <= dots ? (isLong ? 'bg-emerald-500' : 'bg-rose-500') : 'bg-muted'}`} />
+            ))}
           </div>
-          <div className='text-sm font-bold text-foreground'>{fmtCurrency(signal.entry)}</div>
-        </div>
-        <div className='rounded-lg bg-white/70 dark:bg-zinc-900/70 p-2 text-center'>
-          <div className='text-xs text-muted-foreground mb-0.5 flex items-center justify-center gap-1'>
-            <Shield className='h-3 w-3' /> SL
-          </div>
-          <div className='text-sm font-bold text-rose-600 dark:text-rose-400'>{fmtCurrency(signal.sl)}</div>
-        </div>
-        <div className='rounded-lg bg-white/70 dark:bg-zinc-900/70 p-2 text-center'>
-          <div className='text-xs text-muted-foreground mb-0.5 flex items-center justify-center gap-1'>
-            <Zap className='h-3 w-3' /> TP
-          </div>
-          <div className='text-sm font-bold text-emerald-600 dark:text-emerald-400'>{fmtCurrency(signal.tp)}</div>
+          <Badge variant='outline' className={`text-[10px] h-4 px-1 ${
+            signal.strength === 'High' ? 'border-amber-400 text-amber-600' : 'border-slate-300 text-slate-500'}`}>
+            {signal.strength}
+          </Badge>
         </div>
       </div>
-
-      {rr && (
-        <div className='text-xs text-muted-foreground text-right'>
-          R:R = <span className='font-semibold text-foreground'>1:{rr.toFixed(1)}</span>
+      <p className='text-[11px] text-muted-foreground leading-relaxed'>{signal.reason}</p>
+      <div className='grid grid-cols-3 gap-1.5'>
+        <div className='rounded-lg bg-background/80 p-1.5 text-center border border-border/40'>
+          <div className='text-[10px] text-muted-foreground flex items-center justify-center gap-0.5 mb-0.5'>
+            <Target className='h-2.5 w-2.5' /> Entry
+          </div>
+          <div className='text-xs font-bold'>{fmtCurrency(signal.entry)}</div>
         </div>
-      )}
+        <div className='rounded-lg bg-background/80 p-1.5 text-center border border-rose-200/40'>
+          <div className='text-[10px] text-muted-foreground flex items-center justify-center gap-0.5 mb-0.5'>
+            <Shield className='h-2.5 w-2.5' /> SL
+          </div>
+          <div className='text-xs font-bold text-rose-600 dark:text-rose-400'>{fmtCurrency(signal.sl)}</div>
+        </div>
+        <div className='rounded-lg bg-background/80 p-1.5 text-center border border-emerald-200/40'>
+          <div className='text-[10px] text-muted-foreground flex items-center justify-center gap-0.5 mb-0.5'>
+            <Zap className='h-2.5 w-2.5' /> TP
+          </div>
+          <div className='text-xs font-bold text-emerald-600 dark:text-emerald-400'>{fmtCurrency(signal.tp)}</div>
+        </div>
+      </div>
+      <div className='text-[10px] text-muted-foreground text-right'>
+        R:R = <span className='font-semibold text-foreground'>1:{(signal.rr ?? 0).toFixed(1)}</span>
+        <span className='ml-2'>Confluence: {signal.confluence}/4</span>
+      </div>
     </div>
   )
 }
 
-function IndicatorRow({ label, value, color }: { label: string; value: string | null; color?: string }) {
+function IndRow({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
   return (
-    <div className='flex items-center justify-between py-1.5 border-b border-border/40 last:border-0'>
+    <div className='flex items-center justify-between py-1.5 border-b border-border/30 last:border-0'>
       <span className='text-xs text-muted-foreground'>{label}</span>
-      <span className={`text-xs font-semibold font-mono ${color ?? 'text-foreground'}`}>
-        {value ?? '—'}
-      </span>
+      <div className='text-right'>
+        <span className={`text-xs font-semibold font-mono ${color ?? 'text-foreground'}`}>{value}</span>
+        {sub && <span className='text-[10px] text-muted-foreground ml-1'>{sub}</span>}
+      </div>
     </div>
   )
 }
@@ -175,7 +153,7 @@ function candlePeriodStart(nowEpochSec: number, intervalMin: number): number {
 }
 
 function CandleChart({
-  candles, ltp, symbol, interval, fvgs, sweeps,
+  candles, ltp, symbol, interval, fvgs, sweeps, overlays,
 }: {
   candles: [number, number, number, number, number, number][]
   ltp: number
@@ -183,12 +161,14 @@ function CandleChart({
   interval: number
   fvgs?: FVG[]
   sweeps?: LiqSweep[]
+  overlays?: Overlays
 }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<any>(null)
   const seriesRef = useRef<any>(null)
   const sweepLinesRef = useRef<any[]>([])
   const fvgCanvasRef = useRef<HTMLCanvasElement>(null)
+  const overlaySeriesRef = useRef<any[]>([])
 
   // Live candle state — tracked in refs to avoid re-render on every tick
   const liveCandleRef = useRef<{
@@ -276,6 +256,49 @@ function CandleChart({
       liveCandleRef.current = null
     }
   }, [candles, interval])
+
+  // ── Overlay lines: EMA, BB, VWAP, Supertrend ────────────────────────────────
+  useEffect(() => {
+    if (!chartRef.current) return
+    // Remove old overlay series
+    overlaySeriesRef.current.forEach(s => { try { chartRef.current.removeSeries(s) } catch {} })
+    overlaySeriesRef.current = []
+    if (!overlays) return
+
+    const addLine = (data: { time: number; value: number }[], color: string, width = 1, dashed = false) => {
+      if (!data.length) return
+      const s = chartRef.current.addSeries(LineSeries, {
+        color,
+        lineWidth: width,
+        lineStyle: dashed ? 2 : 0,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        crosshairMarkerVisible: false,
+      })
+      s.setData(data as any)
+      overlaySeriesRef.current.push(s)
+    }
+
+    addLine(overlays.ema9,   '#f59e0b', 1)       // amber — EMA9
+    addLine(overlays.ema21,  '#6366f1', 1)       // indigo — EMA21
+    addLine(overlays.ema50,  '#10b981', 1)       // emerald — EMA50
+    addLine(overlays.vwap,   '#a78bfa', 1, true) // violet dashed — VWAP
+    addLine(overlays.bb_upper, '#94a3b8', 1, true) // slate dashed — BB upper
+    addLine(overlays.bb_lower, '#94a3b8', 1, true) // slate dashed — BB lower
+    addLine(overlays.bb_mid,   '#94a3b8', 1, true) // slate dashed — BB mid
+
+    // Supertrend: split into bull/bear segments
+    if (overlays.supertrend?.length) {
+      const bullSeg: { time: number; value: number }[] = []
+      const bearSeg: { time: number; value: number }[] = []
+      overlays.supertrend.forEach(p => {
+        if (p.dir === 1) bullSeg.push({ time: p.time, value: p.value })
+        else bearSeg.push({ time: p.time, value: p.value })
+      })
+      addLine(bullSeg, '#10b981', 2) // thick emerald — bull supertrend
+      addLine(bearSeg, '#f43f5e', 2) // thick rose — bear supertrend
+    }
+  }, [overlays])
 
   // ── Live tick: TradingView-style candle update ──────────────────────────────
   // On each LTP tick:
@@ -587,10 +610,9 @@ export function TradingAnalysis() {
   const [lastLtp, setLastLtp] = useState<number | null>(null)
   const [aiSignal, setAiSignal] = useState<AISignal | null>(null)
   const [aiNews, setAiNews] = useState<{ title: string }[]>([])
-  const [showAllSignals, setShowAllSignals] = useState(false)
+  const [sigFilter, setSigFilter] = useState<'all' | 'high' | 'long' | 'short'>('all')
   const [marketOpen, setMarketOpen] = useState(isMarketOpen)
 
-  // Re-check market status every 30s
   useEffect(() => {
     const id = window.setInterval(() => setMarketOpen(isMarketOpen()), 30_000)
     return () => window.clearInterval(id)
@@ -599,7 +621,7 @@ export function TradingAnalysis() {
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ['analysis-signals', symbol, interval],
     queryFn: () => analysisApi.getSignals(symbol, interval),
-    refetchInterval: autoRefresh ? 5000 : false,
+    refetchInterval: autoRefresh ? 10000 : false,
     retry: 1,
     staleTime: 4000,
   })
@@ -612,8 +634,6 @@ export function TradingAnalysis() {
     staleTime: 15000,
   })
 
-  // Live LTP — every 1s during market hours, paused otherwise
-  // Start as soon as candles are available (don't wait for signals)
   const { data: quoteData } = useQuery({
     queryKey: ['analysis-quote', symbol],
     queryFn: () => analysisApi.getQuote(symbol),
@@ -625,309 +645,321 @@ export function TradingAnalysis() {
 
   const ltp = quoteData?.ltp ?? data?.ltp ?? lastLtp ?? 0
 
-  useEffect(() => {
-    if (data?.ltp) setLastLtp(data.ltp)
-  }, [data?.ltp])
+  useEffect(() => { if (data?.ltp) setLastLtp(data.ltp) }, [data?.ltp])
 
   const aiMutation = useMutation({
     mutationFn: () => analysisApi.getAISignal(symbol, interval),
-    onSuccess: (res) => {
-      setAiSignal(res.ai_signal)
-      setAiNews(res.news ?? [])
-    },
+    onSuccess: (res) => { setAiSignal(res.ai_signal); setAiNews(res.news ?? []) },
   })
 
   const handleSymbolChange = useCallback((s: string) => {
-    setSymbol(s)
-    setLastLtp(null)
-    setAiSignal(null)
-    setAiNews([])
-    setShowAllSignals(false)
+    setSymbol(s); setLastLtp(null); setAiSignal(null); setAiNews([])
   }, [])
 
   const errMsg = (error as any)?.response?.data?.detail ?? 'Failed to fetch data.'
   const analysis: Analysis | undefined = data?.analysis
   const candles = candlesData?.candles ?? []
+  const overlays = candlesData?.overlays
   const signals = analysis?.signals ?? []
-  const indicators = analysis?.indicators
-  const longSignals = signals.filter(s => s.direction === 'LONG')
-  const shortSignals = signals.filter(s => s.direction === 'SHORT')
+  const ind = analysis?.indicators
+
+  const filteredSigs = signals.filter(s => {
+    if (sigFilter === 'high') return s.strength === 'High'
+    if (sigFilter === 'long') return s.direction === 'LONG'
+    if (sigFilter === 'short') return s.direction === 'SHORT'
+    return true
+  })
+  const longCount = signals.filter(s => s.direction === 'LONG').length
+  const shortCount = signals.filter(s => s.direction === 'SHORT').length
+  const highCount = signals.filter(s => s.strength === 'High').length
+
+  // Indicator color helpers
+  const abv = (v?: number | null) => v && ltp > v ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
+  const rsiColor = (v?: number | null) => !v ? '' : v > 70 ? 'text-rose-600 dark:text-rose-400' : v < 30 ? 'text-emerald-600 dark:text-emerald-400' : 'text-foreground'
+  const macdColor = (v?: number | null) => !v ? '' : v > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
 
   return (
     <>
       <Header>
         <div className='ms-auto flex items-center space-x-4'>
-          <Search />
-          <ThemeSwitch />
-          <ConfigDrawer />
-          <ProfileDropdown />
+          <Search /><ThemeSwitch /><ConfigDrawer /><ProfileDropdown />
         </div>
       </Header>
 
-      <Main className='flex flex-col gap-4'>
+      <Main className='flex flex-col gap-3'>
 
-        {/* ── Row 1: Title + controls ── */}
-        <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
+        {/* ── Controls row ── */}
+        <div className='flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between'>
           <div>
-            <h1 className='text-xl font-bold tracking-tight'>Trading Analysis</h1>
-            <p className='text-xs text-muted-foreground mt-0.5'>Live strategy signals · Entry · SL · TP</p>
+            <h1 className='text-lg font-bold tracking-tight'>Trading Analysis</h1>
+            <p className='text-xs text-muted-foreground'>16 strategies · live ticks · confluence scoring</p>
           </div>
-          <div className='flex items-center gap-2 flex-wrap'>
-            {/* Interval pill */}
+          <div className='flex items-center gap-1.5 flex-wrap'>
             <div className='flex items-center gap-0.5 rounded-lg border border-border bg-muted/40 p-0.5'>
               {INTERVALS.map(iv => (
-                <IntervalButton key={iv.value} label={iv.label} active={interval === iv.value} onClick={() => setInterval(iv.value)} />
+                <IvBtn key={iv.value} label={iv.label} active={interval === iv.value} onClick={() => setInterval(iv.value)} />
               ))}
             </div>
-            <Button
-              size='sm'
-              variant={autoRefresh ? 'default' : 'outline'}
-              className={`gap-1.5 h-8 text-xs ${autoRefresh ? 'bg-indigo-600 hover:bg-indigo-700 text-white' : ''}`}
-              onClick={() => setAutoRefresh(p => !p)}
-            >
+            <Button size='sm' variant={autoRefresh ? 'default' : 'outline'}
+              className={`gap-1 h-7 text-xs px-2 ${autoRefresh ? 'bg-indigo-600 hover:bg-indigo-700 text-white' : ''}`}
+              onClick={() => setAutoRefresh(p => !p)}>
               <Activity className={`h-3 w-3 ${autoRefresh ? 'animate-pulse' : ''}`} />
               {autoRefresh ? 'Live' : 'Go Live'}
             </Button>
-            <Button size='sm' variant='outline' className='gap-1.5 h-8 text-xs' onClick={() => refetch()} disabled={isFetching}>
+            <Button size='sm' variant='outline' className='gap-1 h-7 text-xs px-2' onClick={() => refetch()} disabled={isFetching}>
               <RefreshCw className={`h-3 w-3 ${isFetching ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
           </div>
         </div>
 
-        {/* ── Row 2: Instrument selector ── */}
+        {/* ── Instrument selector ── */}
         <div className='flex flex-wrap gap-1.5'>
-          {INSTRUMENTS.map(i => (
-            <InstrumentButton key={i} label={i} active={symbol === i} onClick={() => handleSymbolChange(i)} />
-          ))}
+          {INSTRUMENTS.map(i => <IBtn key={i} label={i} active={symbol === i} onClick={() => handleSymbolChange(i)} />)}
         </div>
 
-        {/* ── Error ── */}
         {isError && (
           <Alert variant='destructive'>
-            <AlertCircle className='h-4 w-4' />
-            <AlertDescription>{errMsg}</AlertDescription>
+            <AlertCircle className='h-4 w-4' /><AlertDescription>{errMsg}</AlertDescription>
           </Alert>
         )}
 
-        {/* ── Row 3: Stats bar ── */}
-        <div className='grid grid-cols-2 sm:grid-cols-4 gap-3'>
-          {/* LTP */}
-          <Card className='border-0 shadow-sm'>
+        {/* ── KPI strip ── */}
+        <div className='grid grid-cols-2 sm:grid-cols-5 gap-2'>
+          <Card className='border-0 shadow-sm col-span-2 sm:col-span-1'>
             <CardContent className='p-3'>
               <div className='text-xs text-muted-foreground mb-1 flex items-center gap-1.5'>
                 {marketOpen ? (
                   <span className='relative flex h-2 w-2'>
-                    <span className='animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75'></span>
-                    <span className='relative inline-flex rounded-full h-2 w-2 bg-emerald-500'></span>
+                    <span className='animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75' />
+                    <span className='relative inline-flex rounded-full h-2 w-2 bg-emerald-500' />
                   </span>
-                ) : (
-                  <span className='inline-flex rounded-full h-2 w-2 bg-zinc-400'></span>
-                )}
-                {symbol} · {marketOpen ? 'Live' : 'Market Closed'}
+                ) : <span className='inline-flex rounded-full h-2 w-2 bg-zinc-400' />}
+                {symbol} · {marketOpen ? 'Live' : 'Closed'}
               </div>
-              {isLoading
-                ? <Skeleton className='h-7 w-28' />
-                : <div className='text-xl font-bold tracking-tight tabular-nums'>{ltp > 0 ? fmtCurrency(ltp) : '—'}</div>
-              }
+              {isLoading ? <Skeleton className='h-7 w-24' />
+                : <div className='text-xl font-bold tabular-nums'>{ltp > 0 ? fmtCurrency(ltp) : '—'}</div>}
             </CardContent>
           </Card>
-          {/* Trend */}
-          <Card className='border-0 shadow-sm'>
-            <CardContent className='p-3'>
-              <div className='text-xs text-muted-foreground mb-1'>Trend</div>
-              {isLoading ? <Skeleton className='h-7 w-20' /> : (
-                <div className={`text-sm font-bold flex items-center gap-1.5 ${
-                  indicators?.trend === 'bullish' ? 'text-emerald-600 dark:text-emerald-400'
-                  : indicators?.trend === 'bearish' ? 'text-rose-600 dark:text-rose-400'
-                  : 'text-muted-foreground'
-                }`}>
-                  {indicators?.trend === 'bullish' ? <ChevronUp className='h-4 w-4' />
-                   : indicators?.trend === 'bearish' ? <ChevronDown className='h-4 w-4' /> : null}
-                  {indicators?.trend ? indicators.trend.charAt(0).toUpperCase() + indicators.trend.slice(1) : '—'}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-          {/* Long signals */}
-          <Card className='border-0 shadow-sm'>
-            <CardContent className='p-3'>
-              <div className='text-xs text-muted-foreground mb-1'>Long Signals</div>
-              {isLoading ? <Skeleton className='h-7 w-10' /> : (
-                <div className='text-xl font-bold text-emerald-600 dark:text-emerald-400'>{longSignals.length}</div>
-              )}
-            </CardContent>
-          </Card>
-          {/* Short signals */}
-          <Card className='border-0 shadow-sm'>
-            <CardContent className='p-3'>
-              <div className='text-xs text-muted-foreground mb-1'>Short Signals</div>
-              {isLoading ? <Skeleton className='h-7 w-10' /> : (
-                <div className='text-xl font-bold text-rose-600 dark:text-rose-400'>{shortSignals.length}</div>
-              )}
-            </CardContent>
-          </Card>
+          {[
+            { label: 'Trend', value: ind?.trend ? ind.trend.charAt(0).toUpperCase() + ind.trend.slice(1) : '—',
+              color: ind?.trend === 'bullish' ? 'text-emerald-600' : ind?.trend === 'bearish' ? 'text-rose-600' : '',
+              icon: ind?.trend === 'bullish' ? <ChevronUp className='h-3.5 w-3.5' /> : ind?.trend === 'bearish' ? <ChevronDown className='h-3.5 w-3.5' /> : null },
+            { label: 'High Prob', value: String(highCount), color: 'text-amber-600' },
+            { label: 'Long', value: String(longCount), color: 'text-emerald-600' },
+            { label: 'Short', value: String(shortCount), color: 'text-rose-600' },
+          ].map(({ label, value, color, icon }) => (
+            <Card key={label} className='border-0 shadow-sm'>
+              <CardContent className='p-3'>
+                <div className='text-xs text-muted-foreground mb-1'>{label}</div>
+                {isLoading ? <Skeleton className='h-6 w-12' />
+                  : <div className={`text-lg font-bold flex items-center gap-1 ${color}`}>{icon}{value}</div>}
+              </CardContent>
+            </Card>
+          ))}
         </div>
 
-        {/* ── Row 4: Chart (full width) ── */}
+        {/* ── Chart ── */}
         <Card className='border-0 shadow-sm'>
-          <CardContent className='p-3'>
+          <CardContent className='p-2'>
             {isLoading
-              ? <Skeleton className='h-[460px] w-full rounded-xl' />
+              ? <Skeleton className='h-[480px] w-full rounded-xl' />
               : candles.length > 0
-              ? <CandleChart candles={candles} ltp={ltp} symbol={symbol} interval={interval} fvgs={analysis?.fvgs} sweeps={analysis?.liquidity_sweeps} />
-              : <div className='h-[460px] flex items-center justify-center text-sm text-muted-foreground'>No candle data. Market may be closed.</div>
-            }
+              ? <CandleChart candles={candles} ltp={ltp} symbol={symbol} interval={interval}
+                  fvgs={analysis?.fvgs} sweeps={analysis?.liquidity_sweeps} overlays={overlays} />
+              : <div className='h-[480px] flex items-center justify-center text-sm text-muted-foreground'>
+                  No candle data available.
+                </div>}
           </CardContent>
         </Card>
 
-        {/* ── Row 5: 3-col grid ── */}
-        <div className='grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch'>
+        {/* ── Bottom 3-col grid ── */}
+        <div className='grid grid-cols-1 lg:grid-cols-3 gap-3'>
 
-          {/* Col 1: Trade Signals */}
+          {/* Col 1: Signals */}
           <Card className='border-0 shadow-sm flex flex-col'>
-            <CardHeader className='pb-2 pt-4 px-4'>
-              <CardTitle className='text-sm font-semibold flex items-center gap-2'>
-                <BarChart2 className='h-4 w-4 text-indigo-500' />
-                Trade Signals
-                {signals.length > 0 && (
-                  <Badge className='bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 text-xs'>
-                    {signals.length}
-                  </Badge>
-                )}
-              </CardTitle>
-              <CardDescription className='text-xs'>Strategy-based · Entry · SL · TP</CardDescription>
+            <CardHeader className='pb-2 pt-3 px-4'>
+              <div className='flex items-center justify-between'>
+                <CardTitle className='text-sm font-semibold flex items-center gap-1.5'>
+                  <BarChart2 className='h-4 w-4 text-indigo-500' /> Signals
+                  {signals.length > 0 && <Badge className='bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 text-[10px] h-4 px-1'>{signals.length}</Badge>}
+                </CardTitle>
+              </div>
+              <Tabs value={sigFilter} onValueChange={v => setSigFilter(v as any)}>
+                <TabsList className='h-6 text-xs mt-1'>
+                  <TabsTrigger value='all' className='text-[10px] h-5 px-2'>All</TabsTrigger>
+                  <TabsTrigger value='high' className='text-[10px] h-5 px-2'>High ({highCount})</TabsTrigger>
+                  <TabsTrigger value='long' className='text-[10px] h-5 px-2'>Long ({longCount})</TabsTrigger>
+                  <TabsTrigger value='short' className='text-[10px] h-5 px-2'>Short ({shortCount})</TabsTrigger>
+                </TabsList>
+              </Tabs>
             </CardHeader>
-            <CardContent className='px-4 pb-4 flex-1 flex flex-col'>
+            <CardContent className='px-4 pb-4 flex-1 overflow-y-auto max-h-[600px]'>
               {isLoading ? (
-                <div className='space-y-3'>{[1,2,3].map(i => <Skeleton key={i} className='h-32 w-full rounded-2xl' />)}</div>
-              ) : signals.length === 0 ? (
-                <div className='flex-1 flex flex-col items-center justify-center py-10 text-center'>
-                  <Activity className='h-8 w-8 text-muted-foreground/30 mb-2' />
-                  <p className='text-sm text-muted-foreground font-medium'>No signals detected</p>
-                  <p className='text-xs text-muted-foreground mt-1'>Market conditions don't trigger strategies right now.</p>
+                <div className='space-y-2'>{[1,2,3].map(i => <Skeleton key={i} className='h-28 w-full rounded-xl' />)}</div>
+              ) : filteredSigs.length === 0 ? (
+                <div className='flex flex-col items-center justify-center py-10 text-center'>
+                  <Activity className='h-8 w-8 text-muted-foreground/20 mb-2' />
+                  <p className='text-xs text-muted-foreground'>No {sigFilter !== 'all' ? sigFilter : ''} signals right now</p>
                 </div>
               ) : (
-                <>
-                  <div className='space-y-3'>
-                    {(showAllSignals ? signals : signals.slice(0, 3)).map((s, i) => <SignalCard key={i} signal={s} />)}
-                  </div>
-                  {signals.length > 3 && (
-                    <button
-                      onClick={() => setShowAllSignals(p => !p)}
-                      className='mt-3 w-full rounded-xl border border-dashed border-indigo-200 dark:border-indigo-800 py-2 text-xs text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors font-medium'
-                    >
-                      {showAllSignals ? `▲ Show less` : `▼ Show ${signals.length - 3} more signals`}
-                    </button>
-                  )}
-                </>
+                <div className='space-y-2'>
+                  {filteredSigs.map((s, i) => <SignalCard key={i} signal={s} />)}
+                </div>
               )}
             </CardContent>
           </Card>
 
-          {/* Col 2: Indicators + S&R + FVG + Sweeps */}
-          <div className='space-y-3 flex flex-col'>
-            {/* Indicators */}
+          {/* Col 2: Indicators */}
+          <div className='space-y-3'>
+            {/* Core indicators */}
             <Card className='border-0 shadow-sm'>
-              <CardHeader className='pb-1 pt-4 px-4'>
+              <CardHeader className='pb-1 pt-3 px-4'>
                 <CardTitle className='text-sm font-semibold'>Indicators</CardTitle>
               </CardHeader>
-              <CardContent className='px-4 pb-4'>
-                {isLoading
-                  ? <div className='space-y-2'>{[1,2,3,4,5].map(i => <Skeleton key={i} className='h-6 w-full' />)}</div>
-                  : <div>
-                      <IndicatorRow label='EMA 9'  value={indicators?.ema9  ? fmtCurrency(indicators.ema9)  : null} color={indicators?.ema9  && ltp > indicators.ema9  ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'} />
-                      <IndicatorRow label='EMA 21' value={indicators?.ema21 ? fmtCurrency(indicators.ema21) : null} color={indicators?.ema21 && ltp > indicators.ema21 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'} />
-                      <IndicatorRow label='EMA 50' value={indicators?.ema50 ? fmtCurrency(indicators.ema50) : null} color={indicators?.ema50 && ltp > indicators.ema50 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'} />
-                      <IndicatorRow label='RSI 14' value={indicators?.rsi14 ? indicators.rsi14.toFixed(1) : null} color={indicators?.rsi14 ? indicators.rsi14 > 70 ? 'text-rose-600 dark:text-rose-400' : indicators.rsi14 < 30 ? 'text-emerald-600 dark:text-emerald-400' : 'text-foreground' : undefined} />
-                      <IndicatorRow label='ATR 14' value={indicators?.atr14 ? fmtCurrency(indicators.atr14) : null} />
-                    </div>
-                }
+              <CardContent className='px-4 pb-3'>
+                {isLoading ? <div className='space-y-1.5'>{[1,2,3,4,5,6,7,8].map(i => <Skeleton key={i} className='h-5 w-full' />)}</div>
+                : <div>
+                    <IndRow label='EMA 9'   value={ind?.ema9  ? fmtCurrency(ind.ema9)  : '—'} color={abv(ind?.ema9)} />
+                    <IndRow label='EMA 21'  value={ind?.ema21 ? fmtCurrency(ind.ema21) : '—'} color={abv(ind?.ema21)} />
+                    <IndRow label='EMA 50'  value={ind?.ema50 ? fmtCurrency(ind.ema50) : '—'} color={abv(ind?.ema50)} />
+                    <IndRow label='EMA 200' value={ind?.ema200 ? fmtCurrency(ind.ema200) : '—'} color={abv(ind?.ema200)} />
+                    <IndRow label='RSI 14'  value={ind?.rsi14?.toFixed(1) ?? '—'} color={rsiColor(ind?.rsi14)} />
+                    <IndRow label='StochRSI %K' value={ind?.stoch_k?.toFixed(0) ?? '—'} color={rsiColor(ind?.stoch_k)} />
+                    <IndRow label='MACD'    value={ind?.macd?.toFixed(1) ?? '—'} sub={`sig ${ind?.macd_signal?.toFixed(1) ?? '—'}`} color={macdColor(ind?.macd)} />
+                    <IndRow label='MACD Hist' value={ind?.macd_hist?.toFixed(1) ?? '—'} color={macdColor(ind?.macd_hist)} />
+                    <IndRow label='ATR 14'  value={ind?.atr14 ? fmtCurrency(ind.atr14) : '—'} />
+                    <IndRow label='VWAP'    value={ind?.vwap ? fmtCurrency(ind.vwap) : '—'} color={abv(ind?.vwap)} />
+                    <IndRow label='BB Upper' value={ind?.bb_upper ? fmtCurrency(ind.bb_upper) : '—'} />
+                    <IndRow label='BB Lower' value={ind?.bb_lower ? fmtCurrency(ind.bb_lower) : '—'} />
+                    <IndRow label='BB %'    value={ind?.bb_pct != null ? `${ind.bb_pct}%` : '—'} color={ind?.bb_pct != null ? ind.bb_pct > 80 ? 'text-rose-600' : ind.bb_pct < 20 ? 'text-emerald-600' : '' : ''} />
+                    <IndRow label='Supertrend' value={ind?.supertrend ? fmtCurrency(ind.supertrend) : '—'}
+                      color={ind?.supertrend_dir === 1 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}
+                      sub={ind?.supertrend_dir === 1 ? '▲ Bull' : ind?.supertrend_dir === -1 ? '▼ Bear' : ''} />
+                    {ind?.vol_spike && <div className='mt-1.5 text-[10px] font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1'>⚡ Volume Spike Detected</div>}
+                  </div>}
               </CardContent>
             </Card>
 
             {/* S&R */}
             <Card className='border-0 shadow-sm'>
-              <CardHeader className='pb-1 pt-4 px-4'>
+              <CardHeader className='pb-1 pt-3 px-4'>
                 <CardTitle className='text-sm font-semibold'>Support & Resistance</CardTitle>
               </CardHeader>
-              <CardContent className='px-4 pb-4'>
-                {isLoading
-                  ? <div className='space-y-2'>{[1,2,3].map(i => <Skeleton key={i} className='h-6 w-full' />)}</div>
-                  : !analysis?.sr_levels?.length
-                  ? <p className='text-xs text-muted-foreground'>Not enough data</p>
-                  : <div className='space-y-1'>
-                      {[...analysis.sr_levels].reverse().map((lvl, i) => {
-                        const isAbove = lvl > ltp
-                        const dist = ltp > 0 ? ((lvl - ltp) / ltp * 100) : 0
-                        return (
-                          <div key={i} className={`flex items-center justify-between rounded-lg px-2.5 py-1.5 text-xs ${Math.abs(dist) < 0.5 ? 'bg-amber-50 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-800' : 'bg-muted/40'}`}>
-                            <span className={`font-semibold font-mono ${isAbove ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>{fmtCurrency(lvl)}</span>
-                            <span className='text-muted-foreground'>{isAbove ? '▲' : '▼'} {Math.abs(dist).toFixed(2)}%</span>
-                          </div>
-                        )
-                      })}
-                    </div>
-                }
+              <CardContent className='px-4 pb-3'>
+                {isLoading ? <div className='space-y-1'>{[1,2,3,4].map(i => <Skeleton key={i} className='h-6 w-full' />)}</div>
+                : !analysis?.sr_levels?.length ? <p className='text-xs text-muted-foreground'>Not enough data</p>
+                : <div className='space-y-1'>
+                    {[...analysis.sr_levels].reverse().slice(0, 10).map((lvl, i) => {
+                      const isAbove = lvl > ltp
+                      const dist = ltp > 0 ? ((lvl - ltp) / ltp * 100) : 0
+                      const near = Math.abs(dist) < 0.3
+                      return (
+                        <div key={i} className={`flex items-center justify-between rounded-lg px-2 py-1 text-xs ${near ? 'bg-amber-50 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-800' : 'bg-muted/30'}`}>
+                          <span className={`font-semibold font-mono text-[11px] ${isAbove ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>{fmtCurrency(lvl)}</span>
+                          <span className='text-[10px] text-muted-foreground'>{isAbove ? '▲' : '▼'} {Math.abs(dist).toFixed(2)}%{near ? ' ⚡' : ''}</span>
+                        </div>
+                      )
+                    })}
+                  </div>}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Col 3: Patterns + SMC + AI */}
+          <div className='space-y-3'>
+            {/* Candlestick Patterns */}
+            <Card className='border-0 shadow-sm'>
+              <CardHeader className='pb-1 pt-3 px-4'>
+                <CardTitle className='text-sm font-semibold'>Candlestick Patterns</CardTitle>
+              </CardHeader>
+              <CardContent className='px-4 pb-3'>
+                {isLoading ? <div className='space-y-1'>{[1,2].map(i => <Skeleton key={i} className='h-8 w-full rounded-lg' />)}</div>
+                : !analysis?.patterns?.length ? <p className='text-xs text-muted-foreground'>No patterns on last 2 candles</p>
+                : <div className='space-y-1.5'>
+                    {analysis.patterns.map((p, i) => (
+                      <div key={i} className={`flex items-center justify-between rounded-lg px-2.5 py-1.5 text-xs border ${
+                        p.direction === 'LONG' ? 'bg-emerald-50/60 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-800/50'
+                        : p.direction === 'SHORT' ? 'bg-rose-50/60 border-rose-200 dark:bg-rose-950/20 dark:border-rose-800/50'
+                        : 'bg-muted/40 border-border/40'}`}>
+                        <span className='font-medium'>{p.type}</span>
+                        <Badge variant='outline' className={`text-[10px] h-4 px-1 ${p.direction === 'LONG' ? 'border-emerald-400 text-emerald-600' : p.direction === 'SHORT' ? 'border-rose-400 text-rose-600' : 'border-zinc-400 text-zinc-500'}`}>
+                          {p.direction}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>}
               </CardContent>
             </Card>
 
-            {/* FVG */}
+            {/* Smart Money: FVG + OB + BOS */}
             <Card className='border-0 shadow-sm'>
-              <CardHeader className='pb-1 pt-4 px-4'>
-                <CardTitle className='text-sm font-semibold'>Fair Value Gaps</CardTitle>
+              <CardHeader className='pb-1 pt-3 px-4'>
+                <CardTitle className='text-sm font-semibold'>Smart Money Concepts</CardTitle>
               </CardHeader>
-              <CardContent className='px-4 pb-4'>
-                {isLoading
-                  ? <div className='space-y-2'>{[1,2].map(i => <Skeleton key={i} className='h-10 w-full rounded-lg' />)}</div>
-                  : !analysis?.fvgs?.length
-                  ? <p className='text-xs text-muted-foreground'>No FVGs detected</p>
-                  : <div className='space-y-2'>
+              <CardContent className='px-4 pb-3 space-y-3'>
+                {/* FVGs */}
+                <div>
+                  <p className='text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1'>Fair Value Gaps</p>
+                  {!analysis?.fvgs?.length ? <p className='text-xs text-muted-foreground'>None</p>
+                  : <div className='space-y-1'>
                       {analysis.fvgs.map((fvg, i) => (
-                        <div key={i} className={`rounded-lg px-3 py-2 text-xs border ${fvg.type === 'bullish' ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800' : 'bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-800'}`}>
-                          <div className='flex items-center justify-between'>
-                            <span className={`font-semibold capitalize ${fvg.type === 'bullish' ? 'text-emerald-700 dark:text-emerald-300' : 'text-rose-700 dark:text-rose-300'}`}>{fvg.type} FVG</span>
-                            <span className='text-muted-foreground font-mono'>{fmtCurrency(fvg.bottom)} – {fmtCurrency(fvg.top)}</span>
-                          </div>
-                          {ltp >= fvg.bottom && ltp <= fvg.top && <span className='text-amber-600 dark:text-amber-400 font-semibold text-xs'>⚡ Price inside FVG</span>}
+                        <div key={i} className={`flex items-center justify-between rounded px-2 py-1 text-xs ${fvg.type === 'bullish' ? 'bg-emerald-50/60 dark:bg-emerald-950/20' : 'bg-rose-50/60 dark:bg-rose-950/20'}`}>
+                          <span className={`font-medium capitalize ${fvg.type === 'bullish' ? 'text-emerald-600' : 'text-rose-600'}`}>{fvg.type}</span>
+                          <span className='font-mono text-[10px] text-muted-foreground'>{fmtCurrency(fvg.bottom)}–{fmtCurrency(fvg.top)}</span>
+                          {ltp >= fvg.bottom && ltp <= fvg.top && <span className='text-amber-500 text-[10px] font-bold'>⚡IN</span>}
+                        </div>
+                      ))}
+                    </div>}
+                </div>
+                {/* Order Blocks */}
+                <div>
+                  <p className='text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1'>Order Blocks</p>
+                  {!analysis?.order_blocks?.length ? <p className='text-xs text-muted-foreground'>None</p>
+                  : <div className='space-y-1'>
+                      {analysis.order_blocks.slice(-4).map((ob, i) => (
+                        <div key={i} className={`flex items-center justify-between rounded px-2 py-1 text-xs ${ob.type === 'bullish' ? 'bg-emerald-50/60 dark:bg-emerald-950/20' : 'bg-rose-50/60 dark:bg-rose-950/20'}`}>
+                          <span className={`font-medium capitalize ${ob.type === 'bullish' ? 'text-emerald-600' : 'text-rose-600'}`}>{ob.type} OB</span>
+                          <span className='font-mono text-[10px] text-muted-foreground'>{fmtCurrency(ob.bottom)}–{fmtCurrency(ob.top)}</span>
+                          {ltp >= ob.bottom && ltp <= ob.top && <span className='text-amber-500 text-[10px] font-bold'>⚡IN</span>}
+                        </div>
+                      ))}
+                    </div>}
+                </div>
+                {/* BOS/ChoCh */}
+                <div>
+                  <p className='text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1'>BOS / ChoCh</p>
+                  {!analysis?.bos_choch?.length ? <p className='text-xs text-muted-foreground'>None recent</p>
+                  : <div className='space-y-1'>
+                      {analysis.bos_choch.map((b, i) => (
+                        <div key={i} className={`flex items-center justify-between rounded px-2 py-1 text-xs ${b.direction === 'LONG' ? 'bg-emerald-50/60 dark:bg-emerald-950/20' : 'bg-rose-50/60 dark:bg-rose-950/20'}`}>
+                          <span className={`font-bold ${b.direction === 'LONG' ? 'text-emerald-600' : 'text-rose-600'}`}>{b.type}</span>
+                          <span className='font-mono text-[10px] text-muted-foreground'>@ {fmtCurrency(b.level)}</span>
+                          <Badge variant='outline' className={`text-[10px] h-4 px-1 ${b.direction === 'LONG' ? 'border-emerald-400 text-emerald-600' : 'border-rose-400 text-rose-600'}`}>{b.direction}</Badge>
+                        </div>
+                      ))}
+                    </div>}
+                </div>
+                {/* Liq Sweeps */}
+                {(analysis?.liquidity_sweeps?.length ?? 0) > 0 && (
+                  <div>
+                    <p className='text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1'>Liquidity Sweeps</p>
+                    <div className='space-y-1'>
+                      {analysis!.liquidity_sweeps.map((sw, i) => (
+                        <div key={i} className={`flex items-center justify-between rounded px-2 py-1 text-xs ${sw.type === 'bullish_sweep' ? 'bg-emerald-50/60 dark:bg-emerald-950/20' : 'bg-rose-50/60 dark:bg-rose-950/20'}`}>
+                          <span className={`font-medium ${sw.type === 'bullish_sweep' ? 'text-emerald-600' : 'text-rose-600'}`}>{sw.type === 'bullish_sweep' ? '▲ Bull' : '▼ Bear'} Sweep</span>
+                          <span className='font-mono text-[10px]'>{fmtCurrency(sw.level)}</span>
                         </div>
                       ))}
                     </div>
-                }
+                  </div>
+                )}
               </CardContent>
             </Card>
 
-            {/* Liquidity Sweeps */}
-            {(analysis?.liquidity_sweeps?.length ?? 0) > 0 && (
-              <Card className='border-0 shadow-sm'>
-                <CardHeader className='pb-1 pt-4 px-4'>
-                  <CardTitle className='text-sm font-semibold'>Liquidity Sweeps</CardTitle>
-                </CardHeader>
-                <CardContent className='px-4 pb-4'>
-                  <div className='space-y-2'>
-                    {analysis!.liquidity_sweeps.map((sw, i) => (
-                      <div key={i} className={`rounded-lg px-3 py-2 text-xs border ${sw.type === 'bullish_sweep' ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800' : 'bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-800'}`}>
-                        <div className='flex items-center justify-between'>
-                          <span className={`font-semibold ${sw.type === 'bullish_sweep' ? 'text-emerald-700 dark:text-emerald-300' : 'text-rose-700 dark:text-rose-300'}`}>
-                            {sw.type === 'bullish_sweep' ? '🟢 Bullish Sweep' : '🔴 Bearish Sweep'}
-                          </span>
-                          <span className='font-mono'>{fmtCurrency(sw.level)}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+            {/* Claude AI */}
+            <AISignalCard signal={aiSignal} news={aiNews} loading={aiMutation.isPending} onRequest={() => aiMutation.mutate()} />
           </div>
-
-          {/* Col 3: Claude AI Signal */}
-          <AISignalCard
-            signal={aiSignal}
-            news={aiNews}
-            loading={aiMutation.isPending}
-            onRequest={() => aiMutation.mutate()}
-          />
         </div>
       </Main>
     </>

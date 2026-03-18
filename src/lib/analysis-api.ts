@@ -17,6 +17,43 @@ export interface TradeSignal {
   sl: number
   tp: number
   reason: string
+  rr: number
+  confluence: number
+}
+
+export interface CandlePattern {
+  type: string
+  direction: 'LONG' | 'SHORT' | 'NEUTRAL'
+  strength: 'High' | 'Medium' | 'Low'
+  candle_idx: number
+}
+
+export interface OrderBlock {
+  type: 'bullish' | 'bearish'
+  top: number
+  bottom: number
+  time: number
+}
+
+export interface BosChoch {
+  type: 'BOS' | 'ChoCh'
+  direction: 'LONG' | 'SHORT'
+  level: number
+  candle_idx: number
+}
+
+export interface OverlayPoint { time: number; value: number }
+export interface SupertrendPoint { time: number; value: number; dir: number }
+
+export interface Overlays {
+  ema9: OverlayPoint[]
+  ema21: OverlayPoint[]
+  ema50: OverlayPoint[]
+  vwap: OverlayPoint[]
+  bb_upper: OverlayPoint[]
+  bb_lower: OverlayPoint[]
+  bb_mid: OverlayPoint[]
+  supertrend: SupertrendPoint[]
 }
 
 export interface FVG {
@@ -36,8 +73,21 @@ export interface Indicators {
   ema9: number | null
   ema21: number | null
   ema50: number | null
+  ema200: number | null
   rsi14: number | null
   atr14: number
+  vwap: number | null
+  bb_upper: number | null
+  bb_lower: number | null
+  bb_pct: number | null
+  macd: number | null
+  macd_signal: number | null
+  macd_hist: number | null
+  stoch_k: number | null
+  stoch_d: number | null
+  supertrend: number | null
+  supertrend_dir: number
+  vol_spike: boolean
   trend: 'bullish' | 'bearish' | 'neutral'
 }
 
@@ -47,6 +97,9 @@ export interface Analysis {
   sr_levels: number[]
   fvgs: FVG[]
   liquidity_sweeps: LiquiditySweep[]
+  patterns: CandlePattern[]
+  order_blocks: OrderBlock[]
+  bos_choch: BosChoch[]
 }
 
 export interface SignalsResponse {
@@ -62,6 +115,7 @@ export interface CandlesResponse {
   candles: [number, number, number, number, number, number][]
   interval: number
   symbol: string
+  overlays: Overlays
 }
 
 export interface AISignal {
