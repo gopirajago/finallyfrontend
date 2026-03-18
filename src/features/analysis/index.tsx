@@ -6,11 +6,11 @@ import {
   Bot, Newspaper, Sparkles, CheckCircle2,
 } from 'lucide-react'
 import {
-  createChart, ColorType, CrosshairMode, CandlestickSeries, LineSeries,
+  createChart, ColorType, CrosshairMode, CandlestickSeries,
 } from 'lightweight-charts'
 import {
   analysisApi, INSTRUMENTS, INTERVALS,
-  type TradeSignal, type Analysis, type AISignal, type Overlays,
+  type TradeSignal, type Analysis, type AISignal,
 } from '@/lib/analysis-api'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
@@ -134,9 +134,6 @@ function IndRow({ label, value, sub, color }: { label: string; value: string; su
 
 // ── Candlestick chart ────────────────────────────────────────────────────────
 
-interface FVG { type: 'bullish' | 'bearish'; top: number; bottom: number }
-interface LiqSweep { type: 'bullish_sweep' | 'bearish_sweep'; level: number }
-
 // Returns the floor UTC epoch (seconds) of the candle period containing `nowEpochSec`
 // aligned to IST (UTC+5:30). Interval is in minutes.
 function candlePeriodStart(nowEpochSec: number, intervalMin: number): number {
@@ -153,35 +150,28 @@ function candlePeriodStart(nowEpochSec: number, intervalMin: number): number {
 }
 
 function CandleChart({
-  candles, ltp, symbol, interval, fvgs, sweeps, overlays,
+  candles, ltp, symbol, interval, signals, srLevels,
 }: {
   candles: [number, number, number, number, number, number][]
   ltp: number
   symbol: string
   interval: number
-  fvgs?: FVG[]
-  sweeps?: LiqSweep[]
-  overlays?: Overlays
+  signals?: TradeSignal[]
+  srLevels?: number[]
 }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<any>(null)
   const seriesRef = useRef<any>(null)
-  const sweepLinesRef = useRef<any[]>([])
-  const fvgCanvasRef = useRef<HTMLCanvasElement>(null)
-  const overlaySeriesRef = useRef<any[]>([])
+  const priceLineRefs = useRef<any[]>([])
 
-  // Live candle state — tracked in refs to avoid re-render on every tick
   const liveCandleRef = useRef<{
-    time: number   // period-start epoch (UTC, IST-aligned) — chart time key
-    open: number
-    high: number
-    low: number
-    close: number
+    time: number
+    open: number; high: number; low: number; close: number
   } | null>(null)
 
-  const IST_OFFSET = 5.5 * 60 * 60  // seconds, used only for chart time display
+  const IST_OFFSET = 5.5 * 60 * 60
 
-  // Build chart once
+  // ── Build chart once ─────────────────────────────────────────────────────
   useEffect(() => {
     if (!containerRef.current) return
     const isDark = document.documentElement.classList.contains('dark')
@@ -192,8 +182,8 @@ function CandleChart({
         textColor: isDark ? '#a1a1aa' : '#52525b',
       },
       grid: {
-        vertLines: { color: isDark ? '#27272a' : '#f4f4f5' },
-        horzLines: { color: isDark ? '#27272a' : '#f4f4f5' },
+        vertLines: { color: isDark ? '#1e1e22' : '#f4f4f5' },
+        horzLines: { color: isDark ? '#1e1e22' : '#f4f4f5' },
       },
       crosshair: { mode: CrosshairMode.Normal },
       rightPriceScale: { borderColor: isDark ? '#27272a' : '#e4e4e7' },
@@ -203,16 +193,13 @@ function CandleChart({
         secondsVisible: false,
       },
       width: containerRef.current.clientWidth,
-      height: 460,
+      height: 500,
     })
 
     const series = chart.addSeries(CandlestickSeries, {
-      upColor: '#10b981',
-      downColor: '#f43f5e',
-      borderUpColor: '#10b981',
-      borderDownColor: '#f43f5e',
-      wickUpColor: '#10b981',
-      wickDownColor: '#f43f5e',
+      upColor: '#10b981', downColor: '#f43f5e',
+      borderUpColor: '#10b981', borderDownColor: '#f43f5e',
+      wickUpColor: '#10b981', wickDownColor: '#f43f5e',
     })
 
     chartRef.current = chart
@@ -229,205 +216,94 @@ function CandleChart({
     }
   }, [])
 
-  // Load historical candle data whenever candles array changes (symbol/interval switch)
+  // ── Load candle history ───────────────────────────────────────────────────
   useEffect(() => {
     if (!seriesRef.current || !candles.length) return
-    const data = candles.map(([t, o, h, l, c]) => ({
-      time: (t + IST_OFFSET) as any,
-      open: o, high: h, low: l, close: c,
-    }))
-    seriesRef.current.setData(data)
+    seriesRef.current.setData(candles.map(([t, o, h, l, c]) => ({
+      time: (t + IST_OFFSET) as any, open: o, high: h, low: l, close: c,
+    })))
     chartRef.current?.timeScale().fitContent()
 
-    // Seed live candle from last historical candle so first tick has correct open/high/low
     const last = candles[candles.length - 1]
     const nowEpoch = Math.floor(Date.now() / 1000)
     const periodStart = candlePeriodStart(nowEpoch, interval)
-    const lastCandlePeriod = candlePeriodStart(last[0], interval)
-
-    if (periodStart === lastCandlePeriod) {
-      // Current period already exists in historical data — resume it
-      liveCandleRef.current = {
-        time: last[0] + IST_OFFSET,
-        open: last[1], high: last[2], low: last[3], close: last[4],
-      }
-    } else {
-      // Historical data is from a prior period; live candle will be created on first tick
-      liveCandleRef.current = null
-    }
+    const lastPeriod  = candlePeriodStart(last[0], interval)
+    liveCandleRef.current = periodStart === lastPeriod
+      ? { time: last[0] + IST_OFFSET, open: last[1], high: last[2], low: last[3], close: last[4] }
+      : null
   }, [candles, interval])
 
-  // ── Overlay lines: EMA, BB, VWAP, Supertrend ────────────────────────────────
-  useEffect(() => {
-    if (!chartRef.current) return
-    // Remove old overlay series
-    overlaySeriesRef.current.forEach(s => { try { chartRef.current.removeSeries(s) } catch {} })
-    overlaySeriesRef.current = []
-    if (!overlays) return
-
-    const addLine = (data: { time: number; value: number }[], color: string, width = 1, dashed = false) => {
-      if (!data.length) return
-      const s = chartRef.current.addSeries(LineSeries, {
-        color,
-        lineWidth: width,
-        lineStyle: dashed ? 2 : 0,
-        priceLineVisible: false,
-        lastValueVisible: false,
-        crosshairMarkerVisible: false,
-      })
-      s.setData(data as any)
-      overlaySeriesRef.current.push(s)
-    }
-
-    addLine(overlays.ema9,   '#f59e0b', 1)       // amber — EMA9
-    addLine(overlays.ema21,  '#6366f1', 1)       // indigo — EMA21
-    addLine(overlays.ema50,  '#10b981', 1)       // emerald — EMA50
-    addLine(overlays.vwap,   '#a78bfa', 1, true) // violet dashed — VWAP
-    addLine(overlays.bb_upper, '#94a3b8', 1, true) // slate dashed — BB upper
-    addLine(overlays.bb_lower, '#94a3b8', 1, true) // slate dashed — BB lower
-    addLine(overlays.bb_mid,   '#94a3b8', 1, true) // slate dashed — BB mid
-
-    // Supertrend: split into bull/bear segments
-    if (overlays.supertrend?.length) {
-      const bullSeg: { time: number; value: number }[] = []
-      const bearSeg: { time: number; value: number }[] = []
-      overlays.supertrend.forEach(p => {
-        if (p.dir === 1) bullSeg.push({ time: p.time, value: p.value })
-        else bearSeg.push({ time: p.time, value: p.value })
-      })
-      addLine(bullSeg, '#10b981', 2) // thick emerald — bull supertrend
-      addLine(bearSeg, '#f43f5e', 2) // thick rose — bear supertrend
-    }
-  }, [overlays])
-
-  // ── Live tick: TradingView-style candle update ──────────────────────────────
-  // On each LTP tick:
-  //   1. Compute the period-aligned candle start for "now"
-  //   2. If same period as liveCandleRef → extend high/low, update close
-  //   3. If new period → push current live candle as closed, start fresh candle
+  // ── Live tick ─────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!seriesRef.current || !ltp || !candles.length) return
-
-    const nowEpoch = Math.floor(Date.now() / 1000)
+    const nowEpoch   = Math.floor(Date.now() / 1000)
     const periodStart = candlePeriodStart(nowEpoch, interval)
-    const chartTime = (periodStart + IST_OFFSET) as any
-
+    const chartTime  = (periodStart + IST_OFFSET) as any
     const prev = liveCandleRef.current
-
     if (!prev || chartTime > prev.time) {
-      // New candle period — open at LTP
-      const newCandle = { time: chartTime, open: ltp, high: ltp, low: ltp, close: ltp }
-      liveCandleRef.current = newCandle
-      seriesRef.current.update(newCandle)
+      const c = { time: chartTime, open: ltp, high: ltp, low: ltp, close: ltp }
+      liveCandleRef.current = c
+      seriesRef.current.update(c)
     } else {
-      // Same period — update high/low/close
-      const updated = {
-        time: prev.time,
-        open:  prev.open,
-        high:  Math.max(prev.high, ltp),
-        low:   Math.min(prev.low,  ltp),
-        close: ltp,
-      }
-      liveCandleRef.current = updated
-      seriesRef.current.update(updated)
+      const c = { time: prev.time, open: prev.open,
+        high: Math.max(prev.high, ltp), low: Math.min(prev.low, ltp), close: ltp }
+      liveCandleRef.current = c
+      seriesRef.current.update(c)
     }
   }, [ltp])
 
-  // Liquidity sweep lines
+  // ── S/R + Signal price lines — redrawn whenever signals or srLevels change ─
   useEffect(() => {
     if (!seriesRef.current) return
-    sweepLinesRef.current.forEach(l => { try { seriesRef.current.removePriceLine(l) } catch {} })
-    sweepLinesRef.current = []
-    if (!sweeps?.length) return
-    sweeps.forEach(sw => {
-      const line = seriesRef.current.createPriceLine({
-        price: sw.level,
-        color: sw.type === 'bullish_sweep' ? '#10b981' : '#f43f5e',
-        lineWidth: 1,
-        lineStyle: 3,
-        axisLabelVisible: true,
-        title: sw.type === 'bullish_sweep' ? '▲ Sweep' : '▼ Sweep',
+    // Clear all existing price lines
+    priceLineRefs.current.forEach(l => { try { seriesRef.current.removePriceLine(l) } catch {} })
+    priceLineRefs.current = []
+
+    const add = (price: number, color: string, title: string, style = 0, width = 1) => {
+      const l = seriesRef.current.createPriceLine({
+        price, color, lineWidth: width, lineStyle: style,
+        axisLabelVisible: true, title,
       })
-      sweepLinesRef.current.push(line)
+      priceLineRefs.current.push(l)
+    }
+
+    // S/R levels — subtle dashed grey lines
+    srLevels?.forEach(lvl => {
+      const isAbove = ltp > 0 && lvl > ltp
+      add(lvl, isAbove ? 'rgba(239,68,68,0.55)' : 'rgba(16,185,129,0.55)', '', 2, 1)
     })
-  }, [sweeps])
 
-  // FVG boxes — canvas overlay, redrawn on scroll/zoom
-  useEffect(() => {
-    const canvas = fvgCanvasRef.current
-    const chart = chartRef.current
-    const series = seriesRef.current
-    if (!canvas || !chart || !series || !fvgs?.length || !candles.length) {
-      fvgCanvasRef.current?.getContext('2d')?.clearRect(0, 0, canvas?.width ?? 0, canvas?.height ?? 0)
-      return
-    }
-
-    const drawFVGs = () => {
-      const container = containerRef.current
-      if (!container || !canvas) return
-      const rect = container.getBoundingClientRect()
-      canvas.width = rect.width
-      canvas.height = 460
-      const ctx = canvas.getContext('2d')
-      if (!ctx) return
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
-      fvgs.forEach(fvg => {
-        try {
-          const yTop    = series.priceToCoordinate(fvg.top)
-          const yBottom = series.priceToCoordinate(fvg.bottom)
-          if (yTop == null || yBottom == null) return
-          const y1 = Math.min(yTop, yBottom)
-          const h  = Math.max(Math.abs(yTop - yBottom), 2)
-          ctx.fillStyle   = fvg.type === 'bullish' ? 'rgba(16,185,129,0.12)' : 'rgba(244,63,94,0.12)'
-          ctx.strokeStyle = fvg.type === 'bullish' ? 'rgba(16,185,129,0.5)'  : 'rgba(244,63,94,0.5)'
-          ctx.fillRect(0, y1, canvas.width - 60, h)
-          ctx.setLineDash([4, 3])
-          ctx.lineWidth = 1
-          ctx.strokeRect(0, y1, canvas.width - 60, h)
-          ctx.setLineDash([])
-          ctx.font      = '10px system-ui'
-          ctx.fillStyle = fvg.type === 'bullish' ? 'rgba(16,185,129,0.9)' : 'rgba(244,63,94,0.9)'
-          ctx.fillText(fvg.type === 'bullish' ? '▲ FVG' : '▼ FVG', 6, y1 + h / 2 + 4)
-        } catch {}
-      })
-    }
-
-    drawFVGs()
-    chart.timeScale().subscribeVisibleLogicalRangeChange(drawFVGs)
-    chart.subscribeCrosshairMove(drawFVGs)
-    return () => {
-      try { chart.timeScale().unsubscribeVisibleLogicalRangeChange(drawFVGs) } catch {}
-      try { chart.unsubscribeCrosshairMove(drawFVGs) } catch {}
-    }
-  }, [fvgs, candles])
+    // Top-3 highest-confluence signals — draw Entry / SL / TP
+    const top = (signals ?? []).slice(0, 3)
+    top.forEach((sig, idx) => {
+      const isLong = sig.direction === 'LONG'
+      const label  = `#${idx + 1}`
+      // Entry — solid blue/orange line
+      add(sig.entry, isLong ? '#6366f1' : '#f97316', `${label} Entry`, 0, 2)
+      // SL — dashed red
+      add(sig.sl,    '#f43f5e', `${label} SL`, 2, 1)
+      // TP — dashed green
+      add(sig.tp,    '#10b981', `${label} TP`, 2, 1)
+    })
+  }, [signals, srLevels, ltp])
 
   return (
     <div>
       <div className='flex items-center justify-between mb-2 px-1'>
-        <span className='text-xs font-medium text-muted-foreground'>{symbol} · {interval}m candles</span>
-        <div className='flex items-center gap-3 text-xs text-muted-foreground'>
-          {(fvgs?.length ?? 0) > 0 && (
+        <span className='text-xs font-medium text-muted-foreground'>{symbol} · {interval === 1440 ? '1D' : `${interval}m`} candles</span>
+        <div className='flex items-center gap-3 text-[10px] text-muted-foreground'>
+          <span className='flex items-center gap-1'><span className='inline-block w-3 h-0.5 bg-rose-400/70'></span><span className='inline-block w-3 h-0.5 bg-emerald-500/70'></span> S/R</span>
+          {(signals?.length ?? 0) > 0 && (
             <span className='flex items-center gap-1'>
-              <span className='inline-block w-3 h-2 rounded-sm bg-emerald-400/40 border border-emerald-400/60'></span>
-              <span className='inline-block w-3 h-2 rounded-sm bg-rose-400/40 border border-rose-400/60'></span>
-              FVG zones
-            </span>
-          )}
-          {(sweeps?.length ?? 0) > 0 && (
-            <span className='flex items-center gap-1'>
-              <span className='inline-block w-4 border-t border-dashed border-emerald-400'></span>
-              Sweeps
+              <span className='inline-block w-3 h-0.5 bg-indigo-500'></span> Entry
+              <span className='inline-block w-3 h-0.5 border-t border-dashed border-rose-400 mt-px'></span> SL
+              <span className='inline-block w-3 h-0.5 border-t border-dashed border-emerald-400 mt-px'></span> TP
             </span>
           )}
         </div>
       </div>
       <div className='relative rounded-xl overflow-hidden border border-border/50'>
         <div ref={containerRef} />
-        <canvas
-          ref={fvgCanvasRef}
-          className='absolute inset-0 pointer-events-none'
-          style={{ width: '100%', height: '460px' }}
-        />
       </div>
     </div>
   )
@@ -491,7 +367,6 @@ export function TradingAnalysis() {
   const errMsg = (error as any)?.response?.data?.detail ?? 'Failed to fetch data.'
   const analysis: Analysis | undefined = data?.analysis
   const candles = candlesData?.candles ?? []
-  const overlays = candlesData?.overlays
   const signals = analysis?.signals ?? []
   const ind = analysis?.indicators
 
@@ -598,7 +473,7 @@ export function TradingAnalysis() {
               ? <Skeleton className='h-[480px] w-full rounded-xl' />
               : candles.length > 0
               ? <CandleChart candles={candles} ltp={ltp} symbol={symbol} interval={interval}
-                  fvgs={analysis?.fvgs} sweeps={analysis?.liquidity_sweeps} overlays={overlays} />
+                  signals={signals} srLevels={analysis?.sr_levels} />
               : <div className='h-[480px] flex items-center justify-center text-sm text-muted-foreground'>
                   No candle data available.
                 </div>}
