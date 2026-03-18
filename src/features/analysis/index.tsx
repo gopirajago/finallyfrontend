@@ -20,7 +20,7 @@ import { ThemeSwitch } from '@/components/theme-switch'
 import { ConfigDrawer } from '@/components/config-drawer'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -433,174 +433,6 @@ function CandleChart({
   )
 }
 
-// ── AI Signal Card ───────────────────────────────────────────────────────────
-
-function AISignalCard({ signal, news, loading, onRequest }: {
-  signal: AISignal | null
-  news: { title: string }[]
-  loading: boolean
-  onRequest: () => void
-}) {
-  const isLong = signal?.direction === 'LONG'
-  const isNeutral = signal?.direction === 'NEUTRAL'
-
-  return (
-    <Card className='border-0 shadow-sm h-full flex flex-col'>
-      <CardHeader className='pb-2'>
-        <div className='flex items-center justify-between'>
-          <CardTitle className='text-sm font-semibold flex items-center gap-2'>
-            <Bot className='h-4 w-4 text-indigo-500' />
-            Claude AI Signal
-          </CardTitle>
-          <Button
-            size='sm'
-            onClick={onRequest}
-            disabled={loading}
-            className='gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white h-7 text-xs px-3'
-          >
-            <Sparkles className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`} />
-            {loading ? 'Analysing…' : signal ? 'Re-analyse' : 'Ask Claude'}
-          </Button>
-        </div>
-        <CardDescription className='text-xs'>
-          AI-powered signal using technicals + live market news
-        </CardDescription>
-      </CardHeader>
-      <CardContent className='space-y-3 flex-1'>
-        {loading && (
-          <div className='space-y-3'>
-            <Skeleton className='h-24 w-full rounded-2xl' />
-            <Skeleton className='h-16 w-full rounded-xl' />
-            <Skeleton className='h-20 w-full rounded-xl' />
-          </div>
-        )}
-
-        {!loading && signal && (
-          <>
-            {/* Direction + Confidence */}
-            <div className={`rounded-2xl p-4 border ${
-              isNeutral
-                ? 'border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900/50'
-                : isLong
-                ? 'border-emerald-200 bg-emerald-50/60 dark:border-emerald-800 dark:bg-emerald-950/40'
-                : 'border-rose-200 bg-rose-50/60 dark:border-rose-800 dark:bg-rose-950/40'
-            }`}>
-              <div className='flex items-center justify-between mb-3'>
-                <div className='flex items-center gap-2'>
-                  {isNeutral
-                    ? <Activity className='h-5 w-5 text-zinc-500' />
-                    : isLong
-                    ? <TrendingUp className='h-5 w-5 text-emerald-600 dark:text-emerald-400' />
-                    : <TrendingDown className='h-5 w-5 text-rose-600 dark:text-rose-400' />
-                  }
-                  <span className={`text-lg font-bold ${
-                    isNeutral ? 'text-zinc-700 dark:text-zinc-300'
-                    : isLong ? 'text-emerald-700 dark:text-emerald-300'
-                    : 'text-rose-700 dark:text-rose-300'
-                  }`}>{signal.direction}</span>
-                  <Badge variant='outline' className={`text-xs ${
-                    signal.confidence === 'High'
-                      ? 'border-amber-400 text-amber-600 dark:text-amber-400'
-                      : signal.confidence === 'Medium'
-                      ? 'border-blue-300 text-blue-600 dark:text-blue-400'
-                      : 'border-zinc-300 text-zinc-500'
-                  }`}>{signal.confidence} Confidence</Badge>
-                </div>
-                <div className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${
-                  signal.sentiment === 'Bullish'
-                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
-                    : signal.sentiment === 'Bearish'
-                    ? 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300'
-                    : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'
-                }`}>
-                  {signal.sentiment}
-                </div>
-              </div>
-
-              {!isNeutral && (
-                <div className='grid grid-cols-3 gap-2'>
-                  <div className='rounded-xl bg-white/70 dark:bg-zinc-900/70 p-2.5 text-center'>
-                    <div className='text-xs text-muted-foreground mb-0.5 flex items-center justify-center gap-1'>
-                      <Target className='h-3 w-3' /> Entry
-                    </div>
-                    <div className='text-sm font-bold'>{fmtCurrency(signal.entry)}</div>
-                  </div>
-                  <div className='rounded-xl bg-white/70 dark:bg-zinc-900/70 p-2.5 text-center'>
-                    <div className='text-xs text-muted-foreground mb-0.5 flex items-center justify-center gap-1'>
-                      <Shield className='h-3 w-3' /> SL
-                    </div>
-                    <div className='text-sm font-bold text-rose-600 dark:text-rose-400'>{fmtCurrency(signal.sl)}</div>
-                  </div>
-                  <div className='rounded-xl bg-white/70 dark:bg-zinc-900/70 p-2.5 text-center'>
-                    <div className='text-xs text-muted-foreground mb-0.5 flex items-center justify-center gap-1'>
-                      <Zap className='h-3 w-3' /> TP
-                    </div>
-                    <div className='text-sm font-bold text-emerald-600 dark:text-emerald-400'>{fmtCurrency(signal.tp)}</div>
-                  </div>
-                </div>
-              )}
-              {!isNeutral && (
-                <div className='mt-2 text-xs text-right text-muted-foreground'>
-                  R:R = <span className='font-semibold text-foreground'>1:{signal.rr_ratio?.toFixed(1)}</span>
-                </div>
-              )}
-            </div>
-
-            {/* Reasoning */}
-            <div className='rounded-xl border border-border bg-muted/30 p-3'>
-              <p className='text-xs font-medium text-muted-foreground mb-1.5 flex items-center gap-1.5'>
-                <Bot className='h-3 w-3' /> Claude's Reasoning
-              </p>
-              <p className='text-xs text-foreground leading-relaxed'>{signal.reasoning}</p>
-            </div>
-
-            {/* Key factors */}
-            {signal.key_factors?.length > 0 && (
-              <div className='space-y-1.5'>
-                <p className='text-xs font-medium text-muted-foreground flex items-center gap-1.5'>
-                  <CheckCircle2 className='h-3 w-3' /> Key Factors
-                </p>
-                {signal.key_factors.map((f, i) => (
-                  <div key={i} className='flex items-start gap-2 rounded-lg bg-muted/40 px-3 py-1.5'>
-                    <span className='text-indigo-500 font-bold text-xs mt-0.5'>·</span>
-                    <span className='text-xs text-foreground'>{f}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </>
-        )}
-
-        {!loading && !signal && (
-          <div className='flex flex-col items-center justify-center py-8 text-center'>
-            <Bot className='h-10 w-10 text-indigo-200 dark:text-indigo-800 mb-3' />
-            <p className='text-sm font-medium text-muted-foreground'>Claude is ready to analyse</p>
-            <p className='text-xs text-muted-foreground mt-1 max-w-xs'>
-              Click <strong>Ask Claude</strong> to get an AI-powered trade signal combining technicals and live news sentiment.
-            </p>
-          </div>
-        )}
-
-        {/* News headlines */}
-        {news.length > 0 && (
-          <div className='pt-1'>
-            <p className='text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1.5'>
-              <Newspaper className='h-3 w-3' /> Latest News Used
-            </p>
-            <div className='space-y-1.5'>
-              {news.map((n, i) => (
-                <div key={i} className='rounded-lg bg-muted/30 px-3 py-1.5'>
-                  <p className='text-xs text-foreground line-clamp-2'>{n.title}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  )
-}
-
 // ── Main component ───────────────────────────────────────────────────────────
 
 export function TradingAnalysis() {
@@ -610,7 +442,7 @@ export function TradingAnalysis() {
   const [lastLtp, setLastLtp] = useState<number | null>(null)
   const [aiSignal, setAiSignal] = useState<AISignal | null>(null)
   const [aiNews, setAiNews] = useState<{ title: string }[]>([])
-  const [sigFilter, setSigFilter] = useState<'all' | 'high' | 'long' | 'short'>('all')
+  const [sigFilter, setSigFilter] = useState<'all' | 'high' | 'long' | 'short' | 'ai'>('all')
   const [marketOpen, setMarketOpen] = useState(isMarketOpen)
 
   useEffect(() => {
@@ -692,7 +524,7 @@ export function TradingAnalysis() {
         <div className='flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between'>
           <div>
             <h1 className='text-lg font-bold tracking-tight'>Trading Analysis</h1>
-            <p className='text-xs text-muted-foreground'>16 strategies · live ticks · confluence scoring</p>
+            <p className='text-xs text-muted-foreground'>20 strategies · live ticks · confluence scoring</p>
           </div>
           <div className='flex items-center gap-1.5 flex-wrap'>
             <div className='flex items-center gap-0.5 rounded-lg border border-border bg-muted/40 p-0.5'>
@@ -773,7 +605,7 @@ export function TradingAnalysis() {
           </CardContent>
         </Card>
 
-        {/* ── Bottom 3-col grid ── */}
+        {/* ── Bottom 2-col grid ── */}
         <div className='grid grid-cols-1 lg:grid-cols-3 gap-3'>
 
           {/* Col 1: Signals */}
@@ -791,11 +623,91 @@ export function TradingAnalysis() {
                   <TabsTrigger value='high' className='text-[10px] h-5 px-2'>High ({highCount})</TabsTrigger>
                   <TabsTrigger value='long' className='text-[10px] h-5 px-2'>Long ({longCount})</TabsTrigger>
                   <TabsTrigger value='short' className='text-[10px] h-5 px-2'>Short ({shortCount})</TabsTrigger>
+                  <TabsTrigger value='ai' className='text-[10px] h-5 px-2 flex items-center gap-0.5'>
+                    <Sparkles className='h-2.5 w-2.5' /> AI
+                  </TabsTrigger>
                 </TabsList>
               </Tabs>
             </CardHeader>
             <CardContent className='px-4 pb-4 flex-1 overflow-y-auto max-h-[600px]'>
-              {isLoading ? (
+              {sigFilter === 'ai' ? (
+                /* ── AI Signal tab ── */
+                <div className='space-y-3'>
+                  {aiMutation.isPending ? (
+                    <div className='flex flex-col items-center justify-center py-10'>
+                      <Bot className='h-8 w-8 text-muted-foreground/30 mb-2 animate-pulse' />
+                      <p className='text-xs text-muted-foreground'>Generating signal...</p>
+                    </div>
+                  ) : aiSignal ? (
+                    <div className={`rounded-xl border p-3 space-y-2.5 ${
+                      aiSignal.direction === 'LONG' ? 'border-emerald-200 bg-emerald-50/40 dark:border-emerald-800/60 dark:bg-emerald-950/20'
+                      : aiSignal.direction === 'SHORT' ? 'border-rose-200 bg-rose-50/40 dark:border-rose-800/60 dark:bg-rose-950/20'
+                      : 'border-zinc-200 bg-zinc-50/40 dark:border-zinc-800/60 dark:bg-zinc-950/20'}`}>
+                      <div className='flex items-center justify-between gap-2'>
+                        <div className='flex items-center gap-1.5'>
+                          {aiSignal.direction === 'LONG' ? <TrendingUp className='h-3.5 w-3.5 text-emerald-500 shrink-0' />
+                          : aiSignal.direction === 'SHORT' ? <TrendingDown className='h-3.5 w-3.5 text-rose-500 shrink-0' />
+                          : <CheckCircle2 className='h-3.5 w-3.5 text-zinc-500 shrink-0' />}
+                          <span className={`text-xs font-bold ${
+                            aiSignal.direction === 'LONG' ? 'text-emerald-600 dark:text-emerald-400'
+                            : aiSignal.direction === 'SHORT' ? 'text-rose-600 dark:text-rose-400'
+                            : 'text-zinc-600 dark:text-zinc-400'}`}>
+                            {aiSignal.direction}
+                          </span>
+                          <Badge variant='outline' className={`text-[10px] h-4 px-1 ${
+                            aiSignal.confidence === 'High' ? 'border-amber-400 text-amber-600' : 'border-slate-300 text-slate-500'}`}>
+                            {aiSignal.confidence}
+                          </Badge>
+                        </div>
+                        <span className='text-[10px] text-muted-foreground'>Claude AI</span>
+                      </div>
+                      <p className='text-[11px] text-muted-foreground leading-relaxed'>{aiSignal.reasoning}</p>
+                      {aiSignal.direction !== 'NEUTRAL' && (
+                        <div className='grid grid-cols-3 gap-1.5'>
+                          <div className='rounded-lg bg-background/80 p-1.5 text-center border border-border/40'>
+                            <div className='text-[10px] text-muted-foreground flex items-center justify-center gap-0.5 mb-0.5'><Target className='h-2.5 w-2.5' /> Entry</div>
+                            <div className='text-xs font-bold'>{fmtCurrency(aiSignal.entry)}</div>
+                          </div>
+                          <div className='rounded-lg bg-background/80 p-1.5 text-center border border-rose-200/40'>
+                            <div className='text-[10px] text-muted-foreground flex items-center justify-center gap-0.5 mb-0.5'><Shield className='h-2.5 w-2.5' /> SL</div>
+                            <div className='text-xs font-bold text-rose-600 dark:text-rose-400'>{fmtCurrency(aiSignal.sl)}</div>
+                          </div>
+                          <div className='rounded-lg bg-background/80 p-1.5 text-center border border-emerald-200/40'>
+                            <div className='text-[10px] text-muted-foreground flex items-center justify-center gap-0.5 mb-0.5'><Zap className='h-2.5 w-2.5' /> TP</div>
+                            <div className='text-xs font-bold text-emerald-600 dark:text-emerald-400'>{fmtCurrency(aiSignal.tp)}</div>
+                          </div>
+                        </div>
+                      )}
+                      {aiSignal.direction !== 'NEUTRAL' && (
+                        <div className='text-[10px] text-muted-foreground text-right'>
+                          R:R = <span className='font-semibold text-foreground'>1:{aiSignal.rr_ratio.toFixed(1)}</span>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className='flex flex-col items-center justify-center py-10 text-center'>
+                      <Sparkles className='h-8 w-8 text-muted-foreground/30 mb-2' />
+                      <p className='text-sm text-muted-foreground font-medium'>No AI signal yet</p>
+                      <p className='text-xs text-muted-foreground mt-1'>Click below to generate a signal.</p>
+                    </div>
+                  )}
+                  {aiNews.length > 0 && (
+                    <div className='space-y-1.5'>
+                      <p className='text-[10px] font-semibold text-muted-foreground uppercase tracking-wide'>Related News</p>
+                      {aiNews.map((n, i) => (
+                        <div key={i} className='flex items-center gap-2 text-xs text-muted-foreground'>
+                          <Newspaper className='h-3 w-3 shrink-0' />
+                          <span className='line-clamp-1'>{n.title}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <Button size='sm' className='w-full gap-1.5 h-8 text-xs' onClick={() => aiMutation.mutate()} disabled={aiMutation.isPending}>
+                    <Bot className='h-3 w-3' />
+                    {aiMutation.isPending ? 'Generating...' : 'Generate AI Signal'}
+                  </Button>
+                </div>
+              ) : isLoading ? (
                 <div className='space-y-2'>{[1,2,3].map(i => <Skeleton key={i} className='h-28 w-full rounded-xl' />)}</div>
               ) : filteredSigs.length === 0 ? (
                 <div className='flex flex-col items-center justify-center py-10 text-center'>
@@ -810,7 +722,8 @@ export function TradingAnalysis() {
             </CardContent>
           </Card>
 
-          {/* Col 2: Indicators */}
+          {/* Col 2+3: Indicators + Patterns + SMC */}
+          <div className='lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-3'>
           <div className='space-y-3'>
             {/* Core indicators */}
             <Card className='border-0 shadow-sm'>
@@ -866,7 +779,7 @@ export function TradingAnalysis() {
             </Card>
           </div>
 
-          {/* Col 3: Patterns + SMC + AI */}
+          {/* Col 3: Patterns + SMC */}
           <div className='space-y-3'>
             {/* Candlestick Patterns */}
             <Card className='border-0 shadow-sm'>
@@ -957,8 +870,7 @@ export function TradingAnalysis() {
               </CardContent>
             </Card>
 
-            {/* Claude AI */}
-            <AISignalCard signal={aiSignal} news={aiNews} loading={aiMutation.isPending} onRequest={() => aiMutation.mutate()} />
+          </div>
           </div>
         </div>
       </Main>
