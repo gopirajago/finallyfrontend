@@ -91,8 +91,21 @@ export interface Indicators {
   trend: 'bullish' | 'bearish' | 'neutral'
 }
 
+export interface BestTrade extends TradeSignal {
+  quality_score: number
+  regime: 'trending' | 'ranging' | 'squeeze'
+  trend_alignment: boolean
+  supporting_factors: string[]
+  risk_amount: number
+  reward_amount: number
+  nearest_support: number | null
+  nearest_resistance: number | null
+}
+
 export interface Analysis {
   signals: TradeSignal[]
+  best_trade: BestTrade | null
+  regime: 'trending' | 'ranging' | 'squeeze'
   indicators: Indicators
   sr_levels: number[]
   fvgs: FVG[]

@@ -58,7 +58,10 @@ export function UserAuthForm({
       auth.setAccessToken(response.access_token)
       auth.setRefreshToken(response.refresh_token)
       toast.success(`Welcome back, ${response.user.full_name ?? response.user.username}!`)
-      navigate({ to: redirectTo ?? '/', replace: true })
+      const destination = redirectTo
+        ? (redirectTo.startsWith('http') ? new URL(redirectTo).pathname : redirectTo)
+        : '/dashboard'
+      navigate({ to: destination, replace: true })
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ??

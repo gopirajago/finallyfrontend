@@ -27,6 +27,7 @@ import { Route as ClerkAuthenticatedRouteRouteImport } from './routes/clerk/_aut
 import { Route as ClerkauthRouteRouteImport } from './routes/clerk/(auth)/route'
 import { Route as AuthenticatedSettingsRouteRouteImport } from './routes/_authenticated/settings/route'
 import { Route as AuthenticatedUsersIndexRouteImport } from './routes/_authenticated/users/index'
+import { Route as AuthenticatedTradingIndexRouteImport } from './routes/_authenticated/trading/index'
 import { Route as AuthenticatedTasksIndexRouteImport } from './routes/_authenticated/tasks/index'
 import { Route as AuthenticatedSettingsIndexRouteImport } from './routes/_authenticated/settings/index'
 import { Route as AuthenticatedPortfolioIndexRouteImport } from './routes/_authenticated/portfolio/index'
@@ -135,6 +136,12 @@ const AuthenticatedUsersIndexRoute = AuthenticatedUsersIndexRouteImport.update({
   path: '/users/',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedTradingIndexRoute =
+  AuthenticatedTradingIndexRouteImport.update({
+    id: '/trading/',
+    path: '/trading/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedTasksIndexRoute = AuthenticatedTasksIndexRouteImport.update({
   id: '/tasks/',
   path: '/tasks/',
@@ -278,6 +285,7 @@ export interface FileRoutesByFullPath {
   '/portfolio/': typeof AuthenticatedPortfolioIndexRoute
   '/settings/': typeof AuthenticatedSettingsIndexRoute
   '/tasks/': typeof AuthenticatedTasksIndexRoute
+  '/trading/': typeof AuthenticatedTradingIndexRoute
   '/users/': typeof AuthenticatedUsersIndexRoute
 }
 export interface FileRoutesByTo {
@@ -313,6 +321,7 @@ export interface FileRoutesByTo {
   '/portfolio': typeof AuthenticatedPortfolioIndexRoute
   '/settings': typeof AuthenticatedSettingsIndexRoute
   '/tasks': typeof AuthenticatedTasksIndexRoute
+  '/trading': typeof AuthenticatedTradingIndexRoute
   '/users': typeof AuthenticatedUsersIndexRoute
 }
 export interface FileRoutesById {
@@ -353,6 +362,7 @@ export interface FileRoutesById {
   '/_authenticated/portfolio/': typeof AuthenticatedPortfolioIndexRoute
   '/_authenticated/settings/': typeof AuthenticatedSettingsIndexRoute
   '/_authenticated/tasks/': typeof AuthenticatedTasksIndexRoute
+  '/_authenticated/trading/': typeof AuthenticatedTradingIndexRoute
   '/_authenticated/users/': typeof AuthenticatedUsersIndexRoute
 }
 export interface FileRouteTypes {
@@ -391,6 +401,7 @@ export interface FileRouteTypes {
     | '/portfolio/'
     | '/settings/'
     | '/tasks/'
+    | '/trading/'
     | '/users/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -426,6 +437,7 @@ export interface FileRouteTypes {
     | '/portfolio'
     | '/settings'
     | '/tasks'
+    | '/trading'
     | '/users'
   id:
     | '__root__'
@@ -465,6 +477,7 @@ export interface FileRouteTypes {
     | '/_authenticated/portfolio/'
     | '/_authenticated/settings/'
     | '/_authenticated/tasks/'
+    | '/_authenticated/trading/'
     | '/_authenticated/users/'
   fileRoutesById: FileRoutesById
 }
@@ -609,6 +622,13 @@ declare module '@tanstack/react-router' {
       path: '/users'
       fullPath: '/users/'
       preLoaderRoute: typeof AuthenticatedUsersIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/trading/': {
+      id: '/_authenticated/trading/'
+      path: '/trading'
+      fullPath: '/trading/'
+      preLoaderRoute: typeof AuthenticatedTradingIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/tasks/': {
@@ -787,6 +807,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedPnlIndexRoute: typeof AuthenticatedPnlIndexRoute
   AuthenticatedPortfolioIndexRoute: typeof AuthenticatedPortfolioIndexRoute
   AuthenticatedTasksIndexRoute: typeof AuthenticatedTasksIndexRoute
+  AuthenticatedTradingIndexRoute: typeof AuthenticatedTradingIndexRoute
   AuthenticatedUsersIndexRoute: typeof AuthenticatedUsersIndexRoute
 }
 
@@ -803,6 +824,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedPnlIndexRoute: AuthenticatedPnlIndexRoute,
   AuthenticatedPortfolioIndexRoute: AuthenticatedPortfolioIndexRoute,
   AuthenticatedTasksIndexRoute: AuthenticatedTasksIndexRoute,
+  AuthenticatedTradingIndexRoute: AuthenticatedTradingIndexRoute,
   AuthenticatedUsersIndexRoute: AuthenticatedUsersIndexRoute,
 }
 
